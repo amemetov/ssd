@@ -24,8 +24,7 @@ default_prior_variance = [0.1, 0.1, 0.2, 0.2]
 default_flip = True
 
 def gen_prior_boxes_config(img_w, img_h, layers_size, aspect_ratios,
-                           flip=True, min_ratio=10, max_ratio = 90):
-                           #min_ratio=20, max_ratio = 90):
+                           flip=True, min_ratio=20, max_ratio = 90):
     assert len(layers_size) == len(aspect_ratios)
     assert min_ratio < max_ratio
 
