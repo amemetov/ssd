@@ -64,6 +64,7 @@ def _create_config_item(layer_w, layer_h, min_size, max_size, aspect_ratios, fli
 
 
 def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
+    result = []
     for layer_config in box_config:
         layer_w = layer_config['layer_width']
         layer_h = layer_config['layer_height']
@@ -78,9 +79,12 @@ def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
 
         num_boxes = num_priors * layer_w * layer_h
 
-        top_data = np.zeros(num_boxes * 8)
+        num_variances = len(variance)
 
-        idx = 0
+        # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
+        top_data = np.zeros((num_boxes, 4 + num_variances))
+
+        box_idx = 0
         for h in range(0, layer_h):
             for w in range(0, layer_w):
                 center_x = w * step_w
@@ -90,26 +94,27 @@ def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
                 box_w = box_h = min_size
 
                 # xmin
-                top_data[idx] = (center_x - box_w / 2.) / img_w
+                top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
                 # ymin
-                top_data[idx + 1] = (center_y - box_h / 2.) / img_h
+                top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
                 # xmax
-                top_data[idx + 2] = (center_x + box_w / 2.) / img_w
+                top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
                 # ymax
-                top_data[idx + 3] = (center_y + box_h / 2.) / img_h
-                idx += 4
+                top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
+                box_idx += 1
 
-                # second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
-                box_w = box_h = math.sqrt(min_size * max_size)
-                # xmin
-                top_data[idx] = (center_x - box_w / 2.) / img_w
-                # ymin
-                top_data[idx + 1] = (center_y - box_h / 2.) / img_h
-                # xmax
-                top_data[idx + 2] = (center_x + box_w / 2.) / img_w
-                # ymax
-                top_data[idx + 3] = (center_y + box_h / 2.) / img_h
-                idx += 4
+                if max_size is not None:
+                    # second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
+                    box_w = box_h = math.sqrt(min_size * max_size)
+                    # xmin
+                    top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
+                    # ymin
+                    top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
+                    # xmax
+                    top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
+                    # ymax
+                    top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
+                    box_idx += 1
 
                 # rest of priors
                 for ar in aspect_ratios:
@@ -118,36 +123,27 @@ def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
 
                     box_w = min_size * math.sqrt(ar)
                     box_h = min_size / math.sqrt(ar)
+
                     # xmin
-                    top_data[idx] = (center_x - box_w / 2.) / img_w
+                    top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
                     # ymin
-                    top_data[idx + 1] = (center_y - box_h / 2.) / img_h
+                    top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
                     # xmax
-                    top_data[idx + 2] = (center_x + box_w / 2.) / img_w
+                    top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
                     # ymax
-                    top_data[idx + 3] = (center_y + box_h / 2.) / img_h
-                    idx += 4
+                    top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
+                    box_idx += 1
 
-
-        print('idx = {0}'.format(idx))
-
-        dim = num_boxes * 4
-        print('dim = {0}'.format(dim))
+        print('box_idx = {0}'.format(box_idx))
 
         # clip the prior's coordidate such that it is within [0, 1]
         if clip:
-            for d in range(0, dim):
-                top_data[d] = min(max(top_data[d], 0.), 1.)
+            top_data = np.minimum(np.maximum(top_data, 0.), 1.)
 
         # set the variance.
-        count = dim
-        for h in range(0, layer_h):
-            for w in range(0, layer_w):
-                for i in range(0, num_priors):
-                    for j in range(0, 4):
-                        top_data[count] = variance[j]
-                        count += 1
+        top_data[:, 4:] = variance
 
-        print('count = {0}'.format(count))
+        result.append(top_data)
 
-        return top_data
+    result = np.concatenate(result, axis=0)
+    return result
