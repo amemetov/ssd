@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 # https://github.com/weiliu89/caffe/blob/ssd/examples/ssd/ssd_pascal.py
 # https://github.com/weiliu89/caffe/blob/ssd/src/caffe/layers/prior_box_layer.cpp
@@ -22,6 +23,7 @@ default_normalizations = [20, -1, -1, -1, -1, -1]
 default_prior_variance = [0.1, 0.1, 0.2, 0.2]
 
 default_flip = True
+default_clip = True
 
 def gen_prior_boxes_config(img_w, img_h, layers_size, aspect_ratios,
                            flip=True, min_ratio=20, max_ratio = 90):
@@ -49,10 +51,11 @@ def gen_prior_boxes_config(img_w, img_h, layers_size, aspect_ratios,
     return box_config
 
 def _create_config_item(layer_w, layer_h, min_size, max_size, aspect_ratios, flip):
+    first_and_second_ars = [1., 1.]
     if flip:
-        aspect_ratios = [1.0] + [f(x) for x in aspect_ratios for f in (lambda x: x, lambda x: 1. / x)]
+        aspect_ratios = first_and_second_ars + [f(x) for x in aspect_ratios for f in (lambda x: x, lambda x: 1. / x)]
     else:
-        aspect_ratios = [1.0] + aspect_ratios
+        aspect_ratios = first_and_second_ars + aspect_ratios
 
     return {'layer_width': layer_w, 'layer_height': layer_h,
             'num_prior': len(aspect_ratios),
@@ -60,45 +63,91 @@ def _create_config_item(layer_w, layer_h, min_size, max_size, aspect_ratios, fli
             'aspect_ratios': aspect_ratios}
 
 
-def create_prior_boxes(box_config):
+def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
     for layer_config in box_config:
-        layer_width = layer_config['layer_width']
-        layer_height = layer_config['layer_height']
-        min_sizes = layer_config['min_size']
-        max_sizes = layer_config['max_size']
-        aspect_ratios_orig = layer_config['aspect_ratios']
-        flip = layer_config['flip']
-        clip = layer_config['clip']
-        variance = layer_config['variance']
+        layer_w = layer_config['layer_width']
+        layer_h = layer_config['layer_height']
+        min_size = layer_config['min_size']
+        max_size = layer_config['max_size']
+        aspect_ratios = layer_config['aspect_ratios']
 
-        # build aspect_ratios
-        aspect_ratios = []
-        # first is always 1
-        aspect_ratios.append(1.0)
-        for ar in aspect_ratios_orig:
-            aspect_ratios.append(ar)
-            if flip:
-                aspect_ratios.append(1.0 / ar)
+        num_priors = len(aspect_ratios)
 
-        num_priors = len(aspect_ratios) * len(min_sizes)
+        step_w = img_w / layer_w
+        step_h = img_h / layer_h
 
-        if len(max_sizes) > 0:
-            assert len(max_sizes) == len(min_sizes), "len(max_sizes) == len(min_sizes)"
-            num_priors += len(max_sizes)
+        num_boxes = num_priors * layer_w * layer_h
 
-        if len(variance) > 1:
-            # Must and only provide 4 variance.
-            assert len(variance) == 4, "Provide only 4 variance"
-        elif len(variance) == 1:
-            # Set default to 0.1.
-            variance = [0.1]
+        top_data = np.zeros(num_boxes * 8)
 
-        # img_w, img_h
-        # step_w, step_h
-        # offset
+        idx = 0
+        for h in range(0, layer_h):
+            for w in range(0, layer_w):
+                center_x = w * step_w
+                center_y = h * step_h
+
+                # first prior: aspect_ratio = 1, size = min_size
+                box_w = box_h = min_size
+
+                # xmin
+                top_data[idx] = (center_x - box_w / 2.) / img_w
+                # ymin
+                top_data[idx + 1] = (center_y - box_h / 2.) / img_h
+                # xmax
+                top_data[idx + 2] = (center_x + box_w / 2.) / img_w
+                # ymax
+                top_data[idx + 3] = (center_y + box_h / 2.) / img_h
+                idx += 4
+
+                # second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
+                box_w = box_h = math.sqrt(min_size * max_size)
+                # xmin
+                top_data[idx] = (center_x - box_w / 2.) / img_w
+                # ymin
+                top_data[idx + 1] = (center_y - box_h / 2.) / img_h
+                # xmax
+                top_data[idx + 2] = (center_x + box_w / 2.) / img_w
+                # ymax
+                top_data[idx + 3] = (center_y + box_h / 2.) / img_h
+                idx += 4
+
+                # rest of priors
+                for ar in aspect_ratios:
+                    if (math.fabs(ar - 1.) < 1e-6):
+                        continue
+
+                    box_w = min_size * math.sqrt(ar)
+                    box_h = min_size / math.sqrt(ar)
+                    # xmin
+                    top_data[idx] = (center_x - box_w / 2.) / img_w
+                    # ymin
+                    top_data[idx + 1] = (center_y - box_h / 2.) / img_h
+                    # xmax
+                    top_data[idx + 2] = (center_x + box_w / 2.) / img_w
+                    # ymax
+                    top_data[idx + 3] = (center_y + box_h / 2.) / img_h
+                    idx += 4
 
 
+        print('idx = {0}'.format(idx))
 
+        dim = num_boxes * 4
+        print('dim = {0}'.format(dim))
 
+        # clip the prior's coordidate such that it is within [0, 1]
+        if clip:
+            for d in range(0, dim):
+                top_data[d] = min(max(top_data[d], 0.), 1.)
 
+        # set the variance.
+        count = dim
+        for h in range(0, layer_h):
+            for w in range(0, layer_w):
+                for i in range(0, num_priors):
+                    for j in range(0, 4):
+                        top_data[count] = variance[j]
+                        count += 1
 
+        print('count = {0}'.format(count))
+
+        return top_data
