@@ -22,10 +22,25 @@ config = [
 ]
 
 if __name__ == "__main__":
-    actual_prior_boxes = pb.create_prior_boxes(300, 300, config, pb.default_prior_variance)
+    import time
+
+    start_time = time.perf_counter()
+    iter_prior_boxes = pb.create_prior_boxes_iter(300, 300, config, pb.default_prior_variance)
+    end_time = time.perf_counter()
+    print("Spent time: {}".format(end_time - start_time))
+
+    start_time = time.perf_counter()
+    vect_prior_boxes = pb.create_prior_boxes_vect(300, 300, config, pb.default_prior_variance)
+    end_time = time.perf_counter()
+    print("Spent time: {}".format(end_time - start_time))
+
     expected_prior_boxes = pickle.load(open('data/prior_boxes_ssd300.pkl', 'rb'))
-    diff = actual_prior_boxes - expected_prior_boxes
-    print("diff.shape {}, max value {}, min value {}".format(diff.shape, diff.max(), diff.min()))
+
+    iter_diff = iter_prior_boxes - expected_prior_boxes
+    print("iter_diff.shape {}, max value {}, min value {}".format(iter_diff.shape, iter_diff.max(), iter_diff.min()))
+
+    vect_diff = vect_prior_boxes - expected_prior_boxes
+    print("vect_diff.shape {}, max value {}, min value {}".format(vect_diff.shape, vect_diff.max(), vect_diff.min()))
 
 
 
