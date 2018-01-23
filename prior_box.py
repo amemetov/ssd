@@ -81,6 +81,9 @@ def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offse
 
         num_variances = len(variance)
 
+        # prepare box widths and heights
+        box_widths, box_heights = _create_box_sizes(min_size, max_size, aspect_ratios)
+
         # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
         top_data = np.zeros((num_boxes, 4 + num_variances))
 
@@ -90,40 +93,7 @@ def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offse
                 center_x = (w + offset) * step_w
                 center_y = (h + offset) * step_h
 
-                # first prior: aspect_ratio = 1, size = min_size
-                box_w = box_h = min_size
-
-                # xmin
-                top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
-                # ymin
-                top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
-                # xmax
-                top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
-                # ymax
-                top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
-                box_idx += 1
-
-                if max_size is not None:
-                    # second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
-                    box_w = box_h = math.sqrt(min_size * max_size)
-                    # xmin
-                    top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
-                    # ymin
-                    top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
-                    # xmax
-                    top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
-                    # ymax
-                    top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
-                    box_idx += 1
-
-                # rest of priors
-                for ar in aspect_ratios:
-                    if (math.fabs(ar - 1.) < 1e-6):
-                        continue
-
-                    box_w = min_size * math.sqrt(ar)
-                    box_h = min_size / math.sqrt(ar)
-
+                for box_w, box_h in zip(box_widths, box_heights):
                     # xmin
                     top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
                     # ymin
@@ -136,7 +106,7 @@ def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offse
 
         # print('box_idx = {0}'.format(box_idx))
 
-        # clip the prior's coordidate such that it is within [0, 1]
+        # clip the prior's coordinate such that it is within [0, 1]
         if clip:
             top_data = np.minimum(np.maximum(top_data, 0.), 1.)
 
@@ -170,7 +140,6 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offse
         # prepare box widths and heights
         box_widths, box_heights = _create_box_sizes(min_size, max_size, aspect_ratios)
 
-
         # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
         top_data = np.zeros((num_boxes, 4 + num_variances))
 
@@ -193,7 +162,7 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offse
 
         # print('box_idx = {0}'.format(box_idx))
 
-        # clip the prior's coordidate such that it is within [0, 1]
+        # clip the prior's coordinate such that it is within [0, 1]
         if clip:
             top_data = np.minimum(np.maximum(top_data, 0.), 1.)
 
