@@ -63,7 +63,7 @@ def _create_config_item(layer_w, layer_h, min_size, max_size, aspect_ratios, fli
             'aspect_ratios': aspect_ratios}
 
 
-def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
+def create_prior_boxes(img_w, img_h, box_config, variance, clip=True, offset=0.5):
     result = []
     for layer_config in box_config:
         layer_w = layer_config['layer_width']
@@ -87,8 +87,8 @@ def create_prior_boxes(img_w, img_h, box_config, variance, clip=True):
         box_idx = 0
         for h in range(0, layer_h):
             for w in range(0, layer_w):
-                center_x = w * step_w
-                center_y = h * step_h
+                center_x = (w + offset) * step_w
+                center_y = (h + offset) * step_h
 
                 # first prior: aspect_ratio = 1, size = min_size
                 box_w = box_h = min_size
