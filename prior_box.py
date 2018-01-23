@@ -139,28 +139,39 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offse
 
         # prepare box widths and heights
         box_widths, box_heights = _create_box_sizes(min_size, max_size, aspect_ratios)
+        box_widths /= 2. * img_w
+        box_heights /= 2. * img_h
 
         # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
         top_data = np.zeros((num_boxes, 4 + num_variances))
 
+        widths = np.arange(0, layer_w)
+        heights = np.arange(0, layer_h)
+        center_x = ((widths + offset) * step_w) / img_w
+        center_y = ((heights + offset) * step_h) / img_h
+        # get all combinations of center_x and center_y
+        center_yx = np.array(np.meshgrid(center_y, center_x)).T.reshape(-1, 2)
+
+        # repeat for boxes = #priors
+        center_yx = np.repeat(center_yx, num_priors, axis=0)
+
+        # set xmin
+        top_data[:, 0] = center_yx[:, 1]
+        # set ymin
+        top_data[:, 1] = center_yx[:, 0]
+        # set xmax
+        top_data[:, 2] = center_yx[:, 1]
+        # set ymax
+        top_data[:, 3] = center_yx[:, 0]
+
+        # use box_widths and box_heights
         box_idx = 0
-        for h in range(0, layer_h):
-            for w in range(0, layer_w):
-                center_x = (w + offset) * step_w
-                center_y = (h + offset) * step_h
-
-                for box_w, box_h in zip(box_widths, box_heights):
-                    # xmin
-                    top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
-                    # ymin
-                    top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
-                    # xmax
-                    top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
-                    # ymax
-                    top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
-                    box_idx += 1
-
-        # print('box_idx = {0}'.format(box_idx))
+        for box_w, box_h in zip(box_widths, box_heights):
+            top_data[box_idx::num_priors, 0] -= box_w
+            top_data[box_idx::num_priors, 1] -= box_h
+            top_data[box_idx::num_priors, 2] += box_w
+            top_data[box_idx::num_priors, 3] += box_h
+            box_idx += 1
 
         # clip the prior's coordinate such that it is within [0, 1]
         if clip:
@@ -198,5 +209,5 @@ def _create_box_sizes(min_size, max_size, aspect_ratios):
         box_widths.append(min_size * math.sqrt(ar))
         box_heights.append(min_size / math.sqrt(ar))
 
-    return box_widths, box_heights
+    return np.array(box_widths), np.array(box_heights)
 
