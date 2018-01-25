@@ -85,7 +85,7 @@ def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offse
         box_widths, box_heights = _create_box_sizes(min_size, max_size, aspect_ratios)
 
         # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
-        top_data = np.zeros((num_boxes, 4 + num_variances))
+        prior_boxes = np.zeros((num_boxes, 4 + num_variances))
 
         box_idx = 0
         for h in range(0, layer_h):
@@ -95,25 +95,25 @@ def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offse
 
                 for box_w, box_h in zip(box_widths, box_heights):
                     # xmin
-                    top_data[box_idx, 0] = (center_x - box_w / 2.) / img_w
+                    prior_boxes[box_idx, 0] = (center_x - box_w / 2.) / img_w
                     # ymin
-                    top_data[box_idx, 1] = (center_y - box_h / 2.) / img_h
+                    prior_boxes[box_idx, 1] = (center_y - box_h / 2.) / img_h
                     # xmax
-                    top_data[box_idx, 2] = (center_x + box_w / 2.) / img_w
+                    prior_boxes[box_idx, 2] = (center_x + box_w / 2.) / img_w
                     # ymax
-                    top_data[box_idx, 3] = (center_y + box_h / 2.) / img_h
+                    prior_boxes[box_idx, 3] = (center_y + box_h / 2.) / img_h
                     box_idx += 1
 
         # print('box_idx = {0}'.format(box_idx))
 
         # clip the prior's coordinate such that it is within [0, 1]
         if clip:
-            top_data = np.minimum(np.maximum(top_data, 0.), 1.)
+            prior_boxes = np.minimum(np.maximum(prior_boxes, 0.), 1.)
 
         # set the variance.
-        top_data[:, 4:] = variance
+        prior_boxes[:, 4:] = variance
 
-        result.append(top_data)
+        result.append(prior_boxes)
 
     result = np.concatenate(result, axis=0)
     return result
@@ -143,7 +143,7 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offse
         box_heights /= 2. * img_h
 
         # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
-        top_data = np.zeros((num_boxes, 4 + num_variances))
+        prior_boxes = np.zeros((num_boxes, 4 + num_variances))
 
         widths = np.arange(0, layer_w)
         heights = np.arange(0, layer_h)
@@ -156,31 +156,31 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offse
         center_yx = np.repeat(center_yx, num_priors, axis=0)
 
         # set xmin
-        top_data[:, 0] = center_yx[:, 1]
+        prior_boxes[:, 0] = center_yx[:, 1]
         # set ymin
-        top_data[:, 1] = center_yx[:, 0]
+        prior_boxes[:, 1] = center_yx[:, 0]
         # set xmax
-        top_data[:, 2] = center_yx[:, 1]
+        prior_boxes[:, 2] = center_yx[:, 1]
         # set ymax
-        top_data[:, 3] = center_yx[:, 0]
+        prior_boxes[:, 3] = center_yx[:, 0]
 
         # use box_widths and box_heights
         box_idx = 0
         for box_w, box_h in zip(box_widths, box_heights):
-            top_data[box_idx::num_priors, 0] -= box_w
-            top_data[box_idx::num_priors, 1] -= box_h
-            top_data[box_idx::num_priors, 2] += box_w
-            top_data[box_idx::num_priors, 3] += box_h
+            prior_boxes[box_idx::num_priors, 0] -= box_w
+            prior_boxes[box_idx::num_priors, 1] -= box_h
+            prior_boxes[box_idx::num_priors, 2] += box_w
+            prior_boxes[box_idx::num_priors, 3] += box_h
             box_idx += 1
 
         # clip the prior's coordinate such that it is within [0, 1]
         if clip:
-            top_data = np.minimum(np.maximum(top_data, 0.), 1.)
+            prior_boxes = np.minimum(np.maximum(prior_boxes, 0.), 1.)
 
         # set the variance.
-        top_data[:, 4:] = variance
+        prior_boxes[:, 4:] = variance
 
-        result.append(top_data)
+        result.append(prior_boxes)
 
     result = np.concatenate(result, axis=0)
     return result
