@@ -21,9 +21,11 @@ def SSD300(base_net_fine_tune_start_layer='conv4_1'):
 
     _freezeBaseNet(base_net, base_net_fine_tune_start_layer)
 
-    predictions = addExtraLayers(base_net, use_batchnorm=True)
+    predictions = addExtraLayers(base_net, use_bn=True)
 
-    model = Model(input=[image_input], outputs=[predictions])
+    model = Model(inputs=[image_input], outputs=[predictions])
+
+    return model
 
 
     # AddExtraLayers(net, use_batchnorm, lr_mult=lr_mult)
@@ -43,74 +45,51 @@ def SSD300(base_net_fine_tune_start_layer='conv4_1'):
 
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception).
-def addExtraLayers(base_net, use_batchnorm=True, lr_mult=1):
-    use_relu = True
-
+def addExtraLayers(base_net, use_bn=True):
     # Add additional convolutional layers.
     # 19 x 19
-    from_layer = base_net#net.keys()[-1]
+    #from_layer = base_net#net.keys()[-1]
+    x = base_net.outputs[0]
 
-    # TODO(weiliu89): Construct the name using the last layer to avoid duplication.
+    print(x)
+
     # 10 x 10
-    out_layer = "conv6_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1,
-        lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv6_1", use_bn, 256, 1, 1, 'same')
 
-    from_layer = out_layer
-    out_layer = "conv6_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2,
-        lr_mult=lr_mult)
+
+    x = ConvBNLayer(x, "conv6_2", use_bn, 512, 3, 2, 'valid')
 
     # 5 x 5
-    from_layer = out_layer
-    out_layer = "conv7_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv7_1", use_bn, 128, 1, 1, 'same')
 
-    from_layer = out_layer
-    out_layer = "conv7_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2,
-      lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv7_2", use_bn, 256, 3, 2, 'valid')
 
     # 3 x 3
-    from_layer = out_layer
-    out_layer = "conv8_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv8_1", use_bn, 128, 1, 1, 'same')
 
-    from_layer = out_layer
-    out_layer = "conv8_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
-      lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv8_2", use_bn, 256, 3, 1, 'same')
 
     # 1 x 1
-    from_layer = out_layer
-    out_layer = "conv9_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
-      lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv9_1", use_bn, 128, 1, 1, 'same')
 
-    from_layer = out_layer
-    out_layer = "conv9_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
-      lr_mult=lr_mult)
+    x = ConvBNLayer(x, "conv9_2", use_bn, 256, 3, 1, 'same')
 
-    return net
+    return x
 
-def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu,
-                num_output, kernel_size, stride, pad='same',
 
-                dilation=1, use_scale=True, lr_mult=1,
-    conv_prefix='', conv_postfix='', bn_prefix='', bn_postfix='_bn',
-    scale_prefix='', scale_postfix='_scale', bias_prefix='', bias_postfix='_bias',
-    **bn_params):
+def ConvBNLayer(net, layer_name, use_bn,
+                num_output, kernel_size, stride, pad,
+                dilation=1):
     x = Convolution2D(filters=num_output, kernel_size=kernel_size,
-                                   strides=stride,
-                                   padding=pad,
-                                   dilation_rate=dilation,
-                                   activation='relu',
-                                   name='conv6_1')(net)
+                      strides=stride,
+                      padding=pad,
+                      dilation_rate=dilation,
+                      activation='relu',
+                      name=layer_name)(net)
     if use_bn:
-        x =
+        x = BatchNormalization()(x)
+
+    return x
 
 
 def _freezeBaseNet(conv_base, fine_tune_start_layer='conv4_1'):
