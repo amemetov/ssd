@@ -2,14 +2,15 @@ import numpy as np
 
 from keras.models import Model, Sequential
 from keras.layers import Input, Cropping2D, Lambda
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Conv2D, AtrousConv2D, MaxPooling2D
 from keras.layers import Dense, Activation, Flatten
 from keras.layers import Dropout, BatchNormalization, ELU
 from keras.optimizers import Adam
 
-from keras.applications import VGG16
+# from keras.applications import VGG16
+from .vgg import VGG16
 
-def SSD300(base_net_fine_tune_start_layer='conv4_1'):
+def SSD300(base_net_fine_tune_start_layer='conv4_1', use_bn=False):
     # VGG16 - Input size must be at least 48x48;
     # SSD 300 - input size 300x300
     input_dim = (300, 300, 3)
@@ -21,7 +22,7 @@ def SSD300(base_net_fine_tune_start_layer='conv4_1'):
 
     _freezeBaseNet(base_net, base_net_fine_tune_start_layer)
 
-    predictions = addExtraLayers(base_net, use_bn=True)
+    predictions = addExtraLayers(base_net, use_bn=use_bn)
 
     model = Model(inputs=[image_input], outputs=[predictions])
 
@@ -45,49 +46,72 @@ def SSD300(base_net_fine_tune_start_layer='conv4_1'):
 
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception).
-def addExtraLayers(base_net, use_bn=True):
+def addExtraLayers(base_net, use_bn=True,  use_dropout=False):
     # Add additional convolutional layers.
-    # 19 x 19
-    #from_layer = base_net#net.keys()[-1]
-    x = base_net.outputs[0]
 
-    print(x)
+    # replace the last MaxPooling2D of VGG16,
+    # sin keras.vgg16 for the last MaxPool2D sets pool_size = 2,
+    # but the origin caffe - pool_size(kernel_size)=3,
+    # base_net.layers.pop()
+    # x = base_net.layers[-1].output
+    # x = MaxPooling2D(pool_size=(3, 3), strides=(1, 1), padding='same', name='block5_pool')(x)
+
+    x = base_net.layers[-1].output
+
+    # 19 x 19
+    # FC6
+    #net.fc6 = L.Convolution(net[name], num_output=num_output, pad=pad, kernel_size=kernel_size, dilation=dilation, **kwargs)
+    x = Conv2D(1024, 3, padding='same', dilation_rate=(6, 6), activation='relu', name='fc6')(x)
+    if use_dropout:
+        #net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+        x = Dropout(0.5, name='drop6')(x)
+
+    # FC7
+    #net.fc7 = L.Convolution(net.relu6, num_output=1024, kernel_size=1, **kwargs)
+    x = Conv2D(1024, 1, padding='same', activation='relu', name='fc7')(x)
+    if use_dropout:
+        # net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+        x = Dropout(0.5, name='drop7')(x)
+
 
     # 10 x 10
-    x = ConvBNLayer(x, "conv6_1", use_bn, 256, 1, 1, 'same')
-
-
-    x = ConvBNLayer(x, "conv6_2", use_bn, 512, 3, 2, 'valid')
+    #x = ConvBNLayer(x, "conv6_1", use_bn, 256, 1, 'same', 1)
+    #x = ConvBNLayer(x, "conv6_2", use_bn, 512, 3, 'valid', 2)
+    x = ConvBNLayer(x, "conv6_1", use_bn, 256, 1, 'valid', 1)
+    x = ConvBNLayer(x, "conv6_2", use_bn, 512, 3, 'same', 2)
 
     # 5 x 5
-    x = ConvBNLayer(x, "conv7_1", use_bn, 128, 1, 1, 'same')
-
-    x = ConvBNLayer(x, "conv7_2", use_bn, 256, 3, 2, 'valid')
+    #x = ConvBNLayer(x, "conv7_1", use_bn, 128, 1, 'same', 1)
+    #x = ConvBNLayer(x, "conv7_2", use_bn, 256, 3, 'valid', 2)
+    x = ConvBNLayer(x, "conv7_1", use_bn, 128, 1, 'valid', 1)
+    x = ConvBNLayer(x, "conv7_2", use_bn, 256, 3, 'same', 2)
 
     # 3 x 3
-    x = ConvBNLayer(x, "conv8_1", use_bn, 128, 1, 1, 'same')
-
-    x = ConvBNLayer(x, "conv8_2", use_bn, 256, 3, 1, 'same')
+    # x = ConvBNLayer(x, "conv8_1", use_bn, 128, 1, 'same', 1)
+    # x = ConvBNLayer(x, "conv8_2", use_bn, 256, 3, 'same', 1)
+    x = ConvBNLayer(x, "conv8_1", use_bn, 128, 1, 'valid', 1)
+    x = ConvBNLayer(x, "conv8_2", use_bn, 256, 3, 'valid', 1)
 
     # 1 x 1
-    x = ConvBNLayer(x, "conv9_1", use_bn, 128, 1, 1, 'same')
-
-    x = ConvBNLayer(x, "conv9_2", use_bn, 256, 3, 1, 'same')
+    # x = ConvBNLayer(x, "conv9_1", use_bn, 128, 1, 'same', 1)
+    # x = ConvBNLayer(x, "conv9_2", use_bn, 256, 3, 'same', 1)
+    x = ConvBNLayer(x, "conv9_1", use_bn, 128, 1, 'valid', 1)
+    x = ConvBNLayer(x, "conv9_2", use_bn, 256, 3, 'valid', 1)
 
     return x
 
 
 def ConvBNLayer(net, layer_name, use_bn,
-                num_output, kernel_size, stride, pad,
+                num_output, kernel_size, pad, stride,
                 dilation=1):
-    x = Convolution2D(filters=num_output, kernel_size=kernel_size,
+    x = Conv2D(filters=num_output, kernel_size=kernel_size,
                       strides=stride,
                       padding=pad,
                       dilation_rate=dilation,
                       activation='relu',
                       name=layer_name)(net)
     if use_bn:
-        x = BatchNormalization()(x)
+        x = BatchNormalization(name=layer_name+'_bn')(x)
 
     return x
 
@@ -100,3 +124,4 @@ def _freezeBaseNet(conv_base, fine_tune_start_layer='conv4_1'):
             set_trainable = True
 
         layer.trainable = set_trainable
+
