@@ -49,52 +49,33 @@ def SSD300(base_net_fine_tune_start_layer='conv4_1', use_bn=False):
 def addExtraLayers(base_net, use_bn=True,  use_dropout=False):
     # Add additional convolutional layers.
 
-    # replace the last MaxPooling2D of VGG16,
-    # sin keras.vgg16 for the last MaxPool2D sets pool_size = 2,
-    # but the origin caffe - pool_size(kernel_size)=3,
-    # base_net.layers.pop()
-    # x = base_net.layers[-1].output
-    # x = MaxPooling2D(pool_size=(3, 3), strides=(1, 1), padding='same', name='block5_pool')(x)
-
     x = base_net.layers[-1].output
 
     # 19 x 19
     # FC6
-    #net.fc6 = L.Convolution(net[name], num_output=num_output, pad=pad, kernel_size=kernel_size, dilation=dilation, **kwargs)
     x = Conv2D(1024, 3, padding='same', dilation_rate=(6, 6), activation='relu', name='fc6')(x)
     if use_dropout:
-        #net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
         x = Dropout(0.5, name='drop6')(x)
 
     # FC7
-    #net.fc7 = L.Convolution(net.relu6, num_output=1024, kernel_size=1, **kwargs)
     x = Conv2D(1024, 1, padding='same', activation='relu', name='fc7')(x)
     if use_dropout:
-        # net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
         x = Dropout(0.5, name='drop7')(x)
 
 
     # 10 x 10
-    #x = ConvBNLayer(x, "conv6_1", use_bn, 256, 1, 'same', 1)
-    #x = ConvBNLayer(x, "conv6_2", use_bn, 512, 3, 'valid', 2)
     x = ConvBNLayer(x, "conv6_1", use_bn, 256, 1, 'valid', 1)
     x = ConvBNLayer(x, "conv6_2", use_bn, 512, 3, 'same', 2)
 
     # 5 x 5
-    #x = ConvBNLayer(x, "conv7_1", use_bn, 128, 1, 'same', 1)
-    #x = ConvBNLayer(x, "conv7_2", use_bn, 256, 3, 'valid', 2)
     x = ConvBNLayer(x, "conv7_1", use_bn, 128, 1, 'valid', 1)
     x = ConvBNLayer(x, "conv7_2", use_bn, 256, 3, 'same', 2)
 
     # 3 x 3
-    # x = ConvBNLayer(x, "conv8_1", use_bn, 128, 1, 'same', 1)
-    # x = ConvBNLayer(x, "conv8_2", use_bn, 256, 3, 'same', 1)
     x = ConvBNLayer(x, "conv8_1", use_bn, 128, 1, 'valid', 1)
     x = ConvBNLayer(x, "conv8_2", use_bn, 256, 3, 'valid', 1)
 
     # 1 x 1
-    # x = ConvBNLayer(x, "conv9_1", use_bn, 128, 1, 'same', 1)
-    # x = ConvBNLayer(x, "conv9_2", use_bn, 256, 3, 'same', 1)
     x = ConvBNLayer(x, "conv9_1", use_bn, 128, 1, 'valid', 1)
     x = ConvBNLayer(x, "conv9_2", use_bn, 256, 3, 'valid', 1)
 
