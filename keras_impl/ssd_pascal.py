@@ -13,24 +13,44 @@ from .vgg import VGG16
 
 from .layers import L2Normalize
 
+# layers_config = [
+#     {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
+#      'min_size':  30.0, 'max_size': None, 'aspect_ratios': [1.0, 2.0, 1/2.0]},
+#
+#     {'layer': 'fc7', 'normalization': -1, 'layer_width': 19, 'layer_height': 19, 'num_prior': 6,
+#      'min_size':  60.0, 'max_size': 114.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+#
+#     {'layer': 'conv6_2', 'normalization': -1, 'layer_width': 10, 'layer_height': 10, 'num_prior': 6,
+#      'min_size': 114.0, 'max_size': 168.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+#
+#     {'layer': 'conv7_2', 'normalization': -1, 'layer_width':  5, 'layer_height':  5, 'num_prior': 6,
+#      'min_size': 168.0, 'max_size': 222.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+#
+#     {'layer': 'conv8_2', 'normalization': -1, 'layer_width':  3, 'layer_height':  3, 'num_prior': 6,
+#      'min_size': 222.0, 'max_size': 276.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+#
+#     {'layer': 'conv9_2', 'normalization': -1, 'layer_width':  1, 'layer_height':  1, 'num_prior': 6,
+#      'min_size': 276.0, 'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+# ]
+
 layers_config = [
-    {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
-     'min_size':  30.0, 'max_size': None, 'aspect_ratios': [1.0, 2.0, 1/2.0]},
+    {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 4,
+     'min_size': 30.0, 'max_size': 60.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]},
 
     {'layer': 'fc7', 'normalization': -1, 'layer_width': 19, 'layer_height': 19, 'num_prior': 6,
-     'min_size':  60.0, 'max_size': 114.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+     'min_size': 60.0, 'max_size': 111.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
 
     {'layer': 'conv6_2', 'normalization': -1, 'layer_width': 10, 'layer_height': 10, 'num_prior': 6,
-     'min_size': 114.0, 'max_size': 168.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+     'min_size': 111.0, 'max_size': 162.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
 
-    {'layer': 'conv7_2', 'normalization': -1, 'layer_width':  5, 'layer_height':  5, 'num_prior': 6,
-     'min_size': 168.0, 'max_size': 222.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer': 'conv7_2', 'normalization': -1, 'layer_width': 5, 'layer_height': 5, 'num_prior': 6,
+     'min_size': 162.0, 'max_size': 213.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
 
-    {'layer': 'conv8_2', 'normalization': -1, 'layer_width':  3, 'layer_height':  3, 'num_prior': 6,
-     'min_size': 222.0, 'max_size': 276.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer': 'conv8_2', 'normalization': -1, 'layer_width': 3, 'layer_height': 3, 'num_prior': 4,
+     'min_size': 213.0, 'max_size': 264.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]},
 
-    {'layer': 'conv9_2', 'normalization': -1, 'layer_width':  1, 'layer_height':  1, 'num_prior': 6,
-     'min_size': 276.0, 'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+    {'layer': 'conv9_2', 'normalization': -1, 'layer_width': 1, 'layer_height': 1, 'num_prior': 4,
+     'min_size': 264.0, 'max_size': 315.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]}
 ]
 
 prior_variance = [0.1, 0.1, 0.2, 0.2]

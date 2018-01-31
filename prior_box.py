@@ -12,6 +12,7 @@ default_img_width, default_img_height = 300, 300
 # conv7_2 ==> 5 x 5
 # conv8_2 ==> 3 x 3
 # conv9_2 ==> 1 x 1
+mbox_source_layers = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
 default_layers_size=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)]
 default_aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
 default_steps = [8, 16, 32, 64, 100, 300]
@@ -25,7 +26,7 @@ default_prior_variance = [0.1, 0.1, 0.2, 0.2]
 default_flip = True
 default_clip = True
 
-def gen_prior_boxes_config(img_w, img_h, layers_size, aspect_ratios,
+def gen_prior_boxes_config(img_w, img_h, layers, normalizations, layers_size, aspect_ratios,
                            flip=True, min_ratio=20, max_ratio = 90):
     assert len(layers_size) == len(aspect_ratios)
     assert min_ratio < max_ratio
@@ -38,26 +39,29 @@ def gen_prior_boxes_config(img_w, img_h, layers_size, aspect_ratios,
     # the first item is the special case in the origin caffe implementation
     min_size = img_min_dim * 10 / 100.
     max_size = img_min_dim * 20 / 100.
+    layer_name = layers[0]
+    norm = normalizations[0]
     layer_w, layer_h = layers_size[0]
-    box_config.append(_create_config_item(layer_w, layer_h, min_size, max_size, aspect_ratios[0], flip))
+    box_config.append(_create_config_item(layer_name, norm, layer_w, layer_h, min_size, max_size, aspect_ratios[0], flip))
     ratio = min_ratio
-    for layer_size, ar in zip(layers_size[1:], aspect_ratios[1:]):
+    for layer_name, norm, layer_size, ar in zip(layers[1:], normalizations[1:], layers_size[1:], aspect_ratios[1:]):
         layer_w, layer_h = layer_size
         min_size = img_min_dim * ratio / 100.
         max_size = img_min_dim * (ratio + ratio_step) / 100.
-        box_config.append(_create_config_item(layer_w, layer_h, min_size, max_size, ar, flip))
+        box_config.append(_create_config_item(layer_name, norm, layer_w, layer_h, min_size, max_size, ar, flip))
         ratio += ratio_step
 
     return box_config
 
-def _create_config_item(layer_w, layer_h, min_size, max_size, aspect_ratios, flip):
+def _create_config_item(layer_name, norm, layer_w, layer_h, min_size, max_size, aspect_ratios, flip):
     first_and_second_ars = [1., 1.]
     if flip:
         aspect_ratios = first_and_second_ars + [f(x) for x in aspect_ratios for f in (lambda x: x, lambda x: 1. / x)]
     else:
         aspect_ratios = first_and_second_ars + aspect_ratios
 
-    return {'layer_width': layer_w, 'layer_height': layer_h,
+    return {'layer': layer_name, 'normalization': norm,
+            'layer_width': layer_w, 'layer_height': layer_h,
             'num_prior': len(aspect_ratios),
             'min_size': min_size, 'max_size': max_size,
             'aspect_ratios': aspect_ratios}
