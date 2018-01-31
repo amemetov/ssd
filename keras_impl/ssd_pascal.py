@@ -119,17 +119,16 @@ def addExtraLayers(ssd_net, base_net_model, use_bn=True, use_dropout=False):
     x = ConvBNLayer(ssd_net, x, "conv9_2", 256, 3, 'valid', 1, use_bn)
 
 
-def ConvBNLayer(net, tensor, layer_name,
-                num_output, kernel_size, pad, stride, dilation=1,
-                use_bn=False):
-    net[layer_name] = x = Conv2D(filters=num_output, kernel_size=kernel_size,
-                                 strides=stride,
-                                 padding=pad,
-                                 dilation_rate=dilation,
-                                 activation='relu',
-                                 name=layer_name)(tensor)
+def ConvBNLayer(net, in_tensor, result_layer_name,
+                num_output, kernel_size, pad, stride, dilation=1, use_bn=False):
+    net[result_layer_name] = x = Conv2D(filters=num_output, kernel_size=kernel_size,
+                                        strides=stride,
+                                        padding=pad,
+                                        dilation_rate=dilation,
+                                        activation='relu',
+                                        name=result_layer_name)(in_tensor)
     if use_bn:
-        net[layer_name + '_bn'] = x = BatchNormalization(name=layer_name + '_bn')(x)
+        net[result_layer_name + '_bn'] = x = BatchNormalization(name=result_layer_name + '_bn')(x)
 
     return x
 
