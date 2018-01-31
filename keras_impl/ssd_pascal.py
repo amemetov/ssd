@@ -53,10 +53,11 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
 
     num_classes = 21
 
-    mbox_layers = CreateMultiBoxHead(ssd_net, input_dim, layers_config,
+    mbox_layers = CreateMultiBoxHead(ssd_net, input_dim, num_classes=num_classes,
+                                     layers_config=layers_config,
                                      flip=True, clip=False, prior_variance=prior_variance, offset=0.5,
-                                     num_classes=num_classes,
-                                     use_bn=use_bn, kernel_size=3, pad='same'#pad=1
+                                     kernel_size=3, pad='same', #pad=1,
+                                     use_bn=use_bn
                                      )
 
     ssd_net['predictions'] = merge(mbox_layers, mode='concat', concat_axis=2, name='predictions')
@@ -102,25 +103,25 @@ def addExtraLayers(ssd_net, base_net_model, use_bn=True, use_dropout=False):
         ssd_net['drop7'] = x = Dropout(0.5, name='drop7')(x)
 
     # 10 x 10
-    x = ConvBNLayer(ssd_net, x, "conv6_1", use_bn, 256, 1, 'valid', 1)
-    x = ConvBNLayer(ssd_net, x, "conv6_2", use_bn, 512, 3, 'same', 2)
+    x = ConvBNLayer(ssd_net, x, "conv6_1", 256, 1, 'valid', 1, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv6_2", 512, 3, 'same', 2, use_bn)
 
     # 5 x 5
-    x = ConvBNLayer(ssd_net, x, "conv7_1", use_bn, 128, 1, 'valid', 1)
-    x = ConvBNLayer(ssd_net, x, "conv7_2", use_bn, 256, 3, 'same', 2)
+    x = ConvBNLayer(ssd_net, x, "conv7_1", 128, 1, 'valid', 1, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv7_2", 256, 3, 'same', 2, use_bn)
 
     # 3 x 3
-    x = ConvBNLayer(ssd_net, x, "conv8_1", use_bn, 128, 1, 'valid', 1)
-    x = ConvBNLayer(ssd_net, x, "conv8_2", use_bn, 256, 3, 'valid', 1)
+    x = ConvBNLayer(ssd_net, x, "conv8_1", 128, 1, 'valid', 1, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv8_2", 256, 3, 'valid', 1, use_bn)
 
     # 1 x 1
-    x = ConvBNLayer(ssd_net, x, "conv9_1", use_bn, 128, 1, 'valid', 1)
-    x = ConvBNLayer(ssd_net, x, "conv9_2", use_bn, 256, 3, 'valid', 1)
+    x = ConvBNLayer(ssd_net, x, "conv9_1", 128, 1, 'valid', 1, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv9_2", 256, 3, 'valid', 1, use_bn)
 
 
-def ConvBNLayer(net, tensor, layer_name, use_bn,
-                num_output, kernel_size, pad, stride,
-                dilation=1):
+def ConvBNLayer(net, tensor, layer_name,
+                num_output, kernel_size, pad, stride, dilation=1,
+                use_bn=False):
     net[layer_name] = x = Conv2D(filters=num_output, kernel_size=kernel_size,
                                  strides=stride,
                                  padding=pad,
@@ -133,14 +134,11 @@ def ConvBNLayer(net, tensor, layer_name, use_bn,
     return x
 
 
-def CreateMultiBoxHead(net, img_size,
+def CreateMultiBoxHead(net, img_size, num_classes,
                        layers_config,
                        flip=True, clip=False, prior_variance=[0.1, 0.1, 0.2, 0.2], offset=0.5,
-                       num_classes=21,
-                       use_bn=True,
-                       kernel_size=1,
-                       pad='valid', #pad=0,
-                       **bn_param):
+                       kernel_size=1, pad='valid', #pad=0,
+                       use_bn=True):
     assert num_classes, "must provide num_classes"
     assert num_classes > 0, "num_classes must be positive number"
 
@@ -167,8 +165,8 @@ def CreateMultiBoxHead(net, img_size,
         # Create location prediction layer.
         loc_name = "{}_mbox_loc".format(layer)
         num_loc_output = num_priors_per_location * 4
-        x = ConvBNLayer(net, net[layer], loc_name, use_bn=use_bn,
-                    num_output=num_loc_output, kernel_size=kernel_size, pad=pad, stride=1)
+        x = ConvBNLayer(net, net[layer], loc_name,
+                    num_output=num_loc_output, kernel_size=kernel_size, pad=pad, stride=1, use_bn=use_bn)
         #permute_name = "{}_perm".format(loc_name)
         #net[permute_name] = L.Permute(net[loc_name], order=[0, 2, 3, 1])
         flatten_name = "{}_flat".format(loc_name)
@@ -178,8 +176,8 @@ def CreateMultiBoxHead(net, img_size,
         # Create confidence prediction layer.
         conf_name = "{}_mbox_conf".format(layer)
         num_conf_output = num_priors_per_location * num_classes
-        x = ConvBNLayer(net, net[layer], conf_name, use_bn=use_bn,
-                    num_output=num_conf_output, kernel_size=kernel_size, pad=pad, stride=1)
+        x = ConvBNLayer(net, net[layer], conf_name,
+                    num_output=num_conf_output, kernel_size=kernel_size, pad=pad, stride=1, use_bn=use_bn)
         #permute_name = "{}_perm".format(conf_name)
         #net[permute_name] = L.Permute(net[conf_name], order=[0, 2, 3, 1])
         flatten_name = "{}_flat".format(conf_name)
