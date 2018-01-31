@@ -8,7 +8,7 @@
 This code is taken from Keras Project - https://github.com/keras-team/keras.
 Changes:
 1) For each MaxPooling2D: padding='same'
-2) For the layer 'block5_pool': kernel_size=(3, 3), strides=(1, 1)
+2) For the layer 'pool5': kernel_size=(3, 3), strides=(1, 1)
 
 """
 from __future__ import print_function
@@ -122,7 +122,7 @@ def VGG16(net, input_tensor=None, input_shape=None,
 
     # Block 2
     net['conv2_1'] = x = Conv2D(128, (3, 3), activation='relu', padding='same', name='conv2_1')(x)
-    net['conv2_2'] = x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv2')(x)
+    net['conv2_2'] = x = Conv2D(128, (3, 3), activation='relu', padding='same', name='conv2_2')(x)
     #x = MaxPooling2D((2, 2), strides=(2, 2), name='block2_pool')(x)
     net['pool2'] = x = MaxPooling2D((2, 2), strides=(2, 2), padding='same', name='pool2')(x)
 
@@ -184,7 +184,7 @@ def VGG16(net, input_tensor=None, input_shape=None,
 
         if K.image_data_format() == 'channels_first':
             if include_top:
-                maxpool = model.get_layer(name='block5_pool')
+                maxpool = model.get_layer(name='pool5')
                 shape = maxpool.output_shape[1:]
                 dense = model.get_layer(name='fc1')
                 layer_utils.convert_dense_weights_data_format(dense, shape, 'channels_first')
