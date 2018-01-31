@@ -1,10 +1,10 @@
 import numpy as np
 
-from keras.models import Model, Sequential
+from keras.models import Model
 from keras.layers import Input, Cropping2D, Lambda
-from keras.layers import Conv2D, AtrousConv2D, MaxPooling2D
+from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Dense, Activation, Flatten
-from keras.layers import Dropout, BatchNormalization, ELU
+from keras.layers import Dropout, BatchNormalization
 from keras.layers import merge
 from keras.optimizers import Adam
 
@@ -13,6 +13,27 @@ from .vgg import VGG16
 
 from .layers import L2Normalize
 
+layers_config = [
+    {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
+     'min_size':  30.0, 'max_size': None, 'aspect_ratios': [1.0, 2.0, 1/2.0]},
+
+    {'layer': 'fc7', 'normalization': -1, 'layer_width': 19, 'layer_height': 19, 'num_prior': 6,
+     'min_size':  60.0, 'max_size': 114.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+
+    {'layer': 'conv6_2', 'normalization': -1, 'layer_width': 10, 'layer_height': 10, 'num_prior': 6,
+     'min_size': 114.0, 'max_size': 168.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+
+    {'layer': 'conv7_2', 'normalization': -1, 'layer_width':  5, 'layer_height':  5, 'num_prior': 6,
+     'min_size': 168.0, 'max_size': 222.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+
+    {'layer': 'conv8_2', 'normalization': -1, 'layer_width':  3, 'layer_height':  3, 'num_prior': 6,
+     'min_size': 222.0, 'max_size': 276.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+
+    {'layer': 'conv9_2', 'normalization': -1, 'layer_width':  1, 'layer_height':  1, 'num_prior': 6,
+     'min_size': 276.0, 'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
+]
+
+prior_variance = [0.1, 0.1, 0.2, 0.2]
 
 def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
     if base_net_name not in {'vgg16', None}:
@@ -30,35 +51,12 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
 
     addExtraLayers(ssd_net, base_net_model, use_bn=use_bn)
 
-    mbox_source_layers = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
     num_classes = 21
 
-    layers_config = [
-    {'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
-     'min_size':  30.0, 'max_size': None, 'aspect_ratios': [1.0, 2.0, 1/2.0]},
-
-    {'layer_width': 19, 'layer_height': 19, 'num_prior': 6,
-     'min_size':  60.0, 'max_size': 114.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-
-    {'layer_width': 10, 'layer_height': 10, 'num_prior': 6,
-     'min_size': 114.0, 'max_size': 168.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-
-    {'layer_width':  5, 'layer_height':  5, 'num_prior': 6,
-     'min_size': 168.0, 'max_size': 222.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-
-    {'layer_width':  3, 'layer_height':  3, 'num_prior': 6,
-     'min_size': 222.0, 'max_size': 276.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-
-    {'layer_width':  1, 'layer_height':  1, 'num_prior': 6,
-     'min_size': 276.0, 'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1/2.0, 3.0, 1/3.0]},
-]
-
     mbox_layers = CreateMultiBoxHead(ssd_net, input_dim, layers_config,
-                                     flip=True, clip=False, prior_variance=[0.1, 0.1, 0.2, 0.2], offset=0.5,
+                                     flip=True, clip=False, prior_variance=prior_variance, offset=0.5,
                                      num_classes=num_classes,
-                                     use_bn=use_bn,
-                                     kernel_size=3,
-                                     pad='same'#pad=1
+                                     use_bn=use_bn, kernel_size=3, pad='same'#pad=1
                                      )
 
     ssd_net['predictions'] = merge(mbox_layers, mode='concat', concat_axis=2, name='predictions')
@@ -147,7 +145,6 @@ def CreateMultiBoxHead(net, img_size,
     assert num_classes > 0, "num_classes must be positive number"
 
 
-    num = len(layers_config)
     priorbox_layers = []
     loc_layers = []
     conf_layers = []
