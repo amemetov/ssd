@@ -11,7 +11,7 @@ from keras.optimizers import Adam
 # from keras.applications import VGG16
 from .vgg import VGG16
 
-from .layers import L2Normalize
+from .layers import L2Normalize, PriorBox
 
 # layers_config = [
 #     {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
@@ -205,10 +205,10 @@ def CreateMultiBoxHead(net, img_size, num_classes,
 
         # Create prior generation layer.
         priorbox_name = "{}_mbox_priorbox".format(layer)
-        net[priorbox_name] = PriorBox(net, net[layer], priorbox_name,
+        net[priorbox_name] = PriorBox(name=priorbox_name,
                                       img_size=img_size,
                                       min_size=min_size, max_size=max_size, aspect_ratios=aspect_ratios,
-                                      flip=flip, clip=clip, variances=prior_variance, offset=offset)
+                                      variance=prior_variance, clip=clip, offset=offset)(net[layer])
         # if step:
         #     net.update(name, {'step': step})
         priorbox_layers.append(net[priorbox_name])
