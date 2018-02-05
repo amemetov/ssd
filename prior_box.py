@@ -132,62 +132,70 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offse
         max_size = layer_config['max_size']
         aspect_ratios = layer_config['aspect_ratios']
 
-        num_priors = len(aspect_ratios)
-
-        step_w = img_w / layer_w
-        step_h = img_h / layer_h
-
-        num_boxes = num_priors * layer_w * layer_h
-
-        num_variances = len(variance)
-
-        # prepare box widths and heights
-        box_widths, box_heights = _create_box_sizes(min_size, max_size, aspect_ratios)
-        box_widths /= 2. * img_w
-        box_heights /= 2. * img_h
-
-        # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
-        prior_boxes = np.zeros((num_boxes, 4 + num_variances))
-
-        widths = np.arange(0, layer_w)
-        heights = np.arange(0, layer_h)
-        center_x = ((widths + offset) * step_w) / img_w
-        center_y = ((heights + offset) * step_h) / img_h
-        # get all combinations of center_x and center_y
-        center_yx = np.array(np.meshgrid(center_y, center_x)).T.reshape(-1, 2)
-
-        # repeat for boxes = #priors
-        center_yx = np.repeat(center_yx, num_priors, axis=0)
-
-        # set xmin
-        prior_boxes[:, 0] = center_yx[:, 1]
-        # set ymin
-        prior_boxes[:, 1] = center_yx[:, 0]
-        # set xmax
-        prior_boxes[:, 2] = center_yx[:, 1]
-        # set ymax
-        prior_boxes[:, 3] = center_yx[:, 0]
-
-        # use box_widths and box_heights
-        box_idx = 0
-        for box_w, box_h in zip(box_widths, box_heights):
-            prior_boxes[box_idx::num_priors, 0] -= box_w
-            prior_boxes[box_idx::num_priors, 1] -= box_h
-            prior_boxes[box_idx::num_priors, 2] += box_w
-            prior_boxes[box_idx::num_priors, 3] += box_h
-            box_idx += 1
-
-        # clip the prior's coordinate such that it is within [0, 1]
-        if clip:
-            prior_boxes = np.minimum(np.maximum(prior_boxes, 0.), 1.)
-
-        # set the variance.
-        prior_boxes[:, 4:] = variance
+        prior_boxes = doCreatePriorBoxes(img_w, img_h, layer_w, layer_h,
+                                         min_size, max_size, aspect_ratios,
+                                         variance, clip, offset)
 
         result.append(prior_boxes)
 
     result = np.concatenate(result, axis=0)
     return result
+
+def doCreatePriorBoxes(img_w, img_h, layer_w, layer_h, min_size, max_size, aspect_ratios,
+                       variance, clip, offset):
+    num_priors = len(aspect_ratios)
+
+    step_w = img_w / layer_w
+    step_h = img_h / layer_h
+
+    num_boxes = num_priors * layer_w * layer_h
+
+    num_variances = len(variance)
+
+    # prepare box widths and heights
+    box_widths, box_heights = _create_box_sizes(min_size, max_size, aspect_ratios)
+    box_widths /= 2. * img_w
+    box_heights /= 2. * img_h
+
+    # (xmin, ymin, xmax, ymax, variance0, variance1, variance2, variance3, ...)
+    prior_boxes = np.zeros((num_boxes, 4 + num_variances))
+
+    widths = np.arange(0, layer_w)
+    heights = np.arange(0, layer_h)
+    center_x = ((widths + offset) * step_w) / img_w
+    center_y = ((heights + offset) * step_h) / img_h
+    # get all combinations of center_x and center_y
+    center_yx = np.array(np.meshgrid(center_y, center_x)).T.reshape(-1, 2)
+
+    # repeat for boxes = #priors
+    center_yx = np.repeat(center_yx, num_priors, axis=0)
+
+    # set xmin
+    prior_boxes[:, 0] = center_yx[:, 1]
+    # set ymin
+    prior_boxes[:, 1] = center_yx[:, 0]
+    # set xmax
+    prior_boxes[:, 2] = center_yx[:, 1]
+    # set ymax
+    prior_boxes[:, 3] = center_yx[:, 0]
+
+    # use box_widths and box_heights
+    box_idx = 0
+    for box_w, box_h in zip(box_widths, box_heights):
+        prior_boxes[box_idx::num_priors, 0] -= box_w
+        prior_boxes[box_idx::num_priors, 1] -= box_h
+        prior_boxes[box_idx::num_priors, 2] += box_w
+        prior_boxes[box_idx::num_priors, 3] += box_h
+        box_idx += 1
+
+    # clip the prior's coordinate such that it is within [0, 1]
+    if clip:
+        prior_boxes = np.minimum(np.maximum(prior_boxes, 0.), 1.)
+
+    # set the variance.
+    prior_boxes[:, 4:] = variance
+
+    return prior_boxes
 
 
 def _create_box_sizes(min_size, max_size, aspect_ratios):
