@@ -61,6 +61,7 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
                          '`vgg16` or (other nets will be added in the future).')
 
     input_dim = (300, 300, 3)
+    img_size = input_dim[0], input_dim[1]
 
     ssd_net = {}
 
@@ -73,7 +74,7 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
 
     num_classes = 21
 
-    mbox_layers = CreateMultiBoxHead(ssd_net, input_dim, num_classes=num_classes,
+    mbox_layers = CreateMultiBoxHead(ssd_net, img_size, num_classes=num_classes,
                                      layers_config=layers_config,
                                      flip=True, clip=False, prior_variance=prior_variance, offset=0.5,
                                      kernel_size=3, pad='same', #pad=1,
@@ -123,20 +124,20 @@ def addExtraLayers(ssd_net, base_net_model, use_bn=True, use_dropout=False):
         ssd_net['drop7'] = x = Dropout(0.5, name='drop7')(x)
 
     # 10 x 10
-    x = ConvBNLayer(ssd_net, x, "conv6_1", 256, 1, 'valid', 1, use_bn)
-    x = ConvBNLayer(ssd_net, x, "conv6_2", 512, 3, 'same', 2, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv6_1", 256, 1, 'valid', 1, use_bn=use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv6_2", 512, 3, 'same', 2, use_bn=use_bn)
 
     # 5 x 5
-    x = ConvBNLayer(ssd_net, x, "conv7_1", 128, 1, 'valid', 1, use_bn)
-    x = ConvBNLayer(ssd_net, x, "conv7_2", 256, 3, 'same', 2, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv7_1", 128, 1, 'valid', 1, use_bn=use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv7_2", 256, 3, 'same', 2, use_bn=use_bn)
 
     # 3 x 3
-    x = ConvBNLayer(ssd_net, x, "conv8_1", 128, 1, 'valid', 1, use_bn)
-    x = ConvBNLayer(ssd_net, x, "conv8_2", 256, 3, 'valid', 1, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv8_1", 128, 1, 'valid', 1, use_bn=use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv8_2", 256, 3, 'valid', 1, use_bn=use_bn)
 
     # 1 x 1
-    x = ConvBNLayer(ssd_net, x, "conv9_1", 128, 1, 'valid', 1, use_bn)
-    x = ConvBNLayer(ssd_net, x, "conv9_2", 256, 3, 'valid', 1, use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv9_1", 128, 1, 'valid', 1, use_bn=use_bn)
+    x = ConvBNLayer(ssd_net, x, "conv9_2", 256, 3, 'valid', 1, use_bn=use_bn)
 
 
 def ConvBNLayer(net, in_tensor, result_layer_name,
