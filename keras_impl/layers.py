@@ -3,7 +3,6 @@ from keras.engine.topology import InputSpec
 from keras.engine.topology import Layer
 from keras.initializers import Constant
 
-#from .. import prior_box as pb
 from prior_box import doCreatePriorBoxes
 
 
@@ -48,8 +47,8 @@ class L2Normalize(Layer):
         self.input_spec = [InputSpec(shape=input_shape)]
         self.built = True
 
-    def call(self, x, mask=None):
-        output = K.l2_normalize(x, self.channel_axis)
+    def call(self, inputs, **kwargs):
+        output = K.l2_normalize(inputs, self.channel_axis)
         output *= self.gamma
         return output
 
@@ -114,7 +113,7 @@ class PriorBox(Layer):
         return (batch_size, num_boxes, 4 + num_variances)
 
     def call(self, inputs, **kwargs):
-        input_shape = K.shape(inputs)
+        input_shape = K.int_shape(inputs)
 
         layer_w, layer_h = input_shape[self.w_axis], input_shape[self.h_axis]
 
@@ -122,12 +121,7 @@ class PriorBox(Layer):
                                          self.min_size, self.max_size, self.aspect_ratios,
                                          self.variance, self.clip, self.offset)
 
-        return prior_boxes
-        # prior_boxes_tensor = K.expand_dims(K.variable(prior_boxes), 0)
-        # if K.backend() == 'tensorflow':
-        #     pattern = [tf.shape(x)[0], 1, 1]
-        #     prior_boxes_tensor = tf.tile(prior_boxes_tensor, pattern)
-        # elif K.backend() == 'theano':
-        #     # TODO
-        #     pass
-        # return prior_boxes_tensor
+        prior_boxes_tensor = K.variable(prior_boxes)
+        prior_boxes_tensor = K.expand_dims(prior_boxes_tensor, 0)
+        prior_boxes_tensor = K.tile(prior_boxes_tensor, [K.shape(inputs)[0], 1, 1])
+        return prior_boxes_tensor
