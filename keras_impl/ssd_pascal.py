@@ -1,11 +1,14 @@
 import numpy as np
 
+import keras.backend as K
 from keras.models import Model
 from keras.layers import Input, Cropping2D, Lambda
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Dense, Activation, Flatten
 from keras.layers import Dropout, BatchNormalization
-from keras.layers import merge
+from keras.layers.merge import concatenate, add
+from keras.layers import Reshape
+
 from keras.optimizers import Adam
 
 # from keras.applications import VGG16
@@ -74,16 +77,14 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
 
     num_classes = 21
 
-    mbox_layers = CreateMultiBoxHead(ssd_net, img_size, num_classes=num_classes,
+    CreateMultiBoxHead(ssd_net, img_size, num_classes=num_classes,
                                      layers_config=layers_config,
-                                     flip=True, clip=False, prior_variance=prior_variance, offset=0.5,
-                                     kernel_size=3, pad='same', #pad=1,
-                                     use_bn=use_bn
-                                     )
+                                     clip=False, prior_variance=prior_variance, offset=0.5,
+                                     kernel_size=3, pad='same', use_bn=use_bn)
 
-    ssd_net['predictions'] = merge(mbox_layers, mode='concat', concat_axis=2, name='predictions')
+    predictions_tensor = createPredictionsLayer(ssd_net, num_classes=num_classes)
 
-    model = Model(inputs=[ssd_net['image_input']], outputs=[ssd_net['predictions']])
+    model = Model(inputs=[ssd_net['image_input']], outputs=[predictions_tensor])
 
     _freezeLayers(model, freeze_layers)
 
@@ -139,6 +140,8 @@ def addExtraLayers(ssd_net, base_net_model, use_bn=True, use_dropout=False):
     x = ConvBNLayer(ssd_net, x, "conv9_1", 128, 1, 'valid', 1, use_bn=use_bn)
     x = ConvBNLayer(ssd_net, x, "conv9_2", 256, 3, 'valid', 1, use_bn=use_bn)
 
+    return x
+
 
 def ConvBNLayer(net, in_tensor, result_layer_name,
                 num_output, kernel_size, pad, stride, dilation=1, use_bn=False):
@@ -154,11 +157,9 @@ def ConvBNLayer(net, in_tensor, result_layer_name,
     return x
 
 
-def CreateMultiBoxHead(net, img_size, num_classes,
-                       layers_config,
-                       flip=True, clip=False, prior_variance=[0.1, 0.1, 0.2, 0.2], offset=0.5,
-                       kernel_size=1, pad='valid', #pad=0,
-                       use_bn=True):
+def CreateMultiBoxHead(net, img_size, num_classes, layers_config,
+                       clip=False, prior_variance=[0.1, 0.1, 0.2, 0.2], offset=0.5,
+                       kernel_size=1, pad='valid', use_bn=True):
     assert num_classes, "must provide num_classes"
     assert num_classes > 0, "num_classes must be positive number"
 
@@ -216,11 +217,30 @@ def CreateMultiBoxHead(net, img_size, num_classes,
 
 
     # Concatenate priorbox, loc, and conf layers.
-    net['mbox_loc'] = merge(loc_layers, mode='concat', concat_axis=1, name='mbox_loc')
-    net['mbox_conf'] = merge(conf_layers, mode='concat', concat_axis=1, name='mbox_conf')
-    net['mbox_priorbox'] = merge(priorbox_layers, mode='concat', concat_axis=1, name='mbox_priorbox')
+    net['mbox_loc'] = concatenate(loc_layers, axis=1, name='mbox_loc')
+    net['mbox_conf'] = concatenate(conf_layers, axis=1, name='mbox_conf')
 
-    return [net['mbox_loc'], net['mbox_conf'], net['mbox_priorbox']]
+    # priorbox shapes:
+    # [(None, 5776, 8), (None, 2166, 8), (None, 600, 8), (None, 150, 8), (None, 36, 8), (None, 4, 8)]
+    # concatenate them at axis=1
+    net['mbox_priorbox'] = concatenate(priorbox_layers, axis=1, name='mbox_priorbox')
+
+
+def createPredictionsLayer(net, num_classes):
+    # Reshape loc and conf
+    num_boxes = K.int_shape(net['mbox_priorbox'])[1]
+    net['mbox_loc'] = Reshape(target_shape=(num_boxes, 4), name='mbox_loc_reshaped')(net['mbox_loc'])
+    net['mbox_conf'] = Reshape(target_shape=(num_boxes, num_classes), name='mbox_conf_reshaped')(net['mbox_conf'])
+
+    # Add softmax activation for conf
+    net['mbox_conf'] = Activation(activation='softmax', name='mbox_conf_activation')(net['mbox_conf'])
+
+    # we have layers with shapes: [(None, 8732, 4), (None, 8732, 21), (None, 8732, 8)]
+    # concatenate them at axis=2
+    net['predictions'] = concatenate([net['mbox_loc'], net['mbox_conf'], net['mbox_priorbox']],
+                                     axis=2, name='predictions')
+
+    return net['predictions']
 
 
 def _freezeLayers(model, freeze_layers):
@@ -235,11 +255,6 @@ def _freezeLayers(model, freeze_layers):
     for layer in model.layers:
         layer.trainable = layer.name not in freeze_layers
 
-# def _freezeBaseNet(conv_base, fine_tune_start_layer='conv4_1'):
-#     conv_base.trainable = True
-#     set_trainable = False
-#     for layer in conv_base.layers:
-#         if layer.name == fine_tune_start_layer:
-#             set_trainable = True
-#
-#         layer.trainable = set_trainable
+if __name__ == "__main__":
+    model = SSD300(use_bn=False)
+    print(model)
