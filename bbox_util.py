@@ -38,7 +38,7 @@ def GetGroundTruth(gt_data, num_gt, background_label_id, use_difficult_gt, all_g
             #Skip reading difficult ground truth.
             continue
 
-        bbox = NormalizedBBox(label, xmin=gt_data[start_idx + 3], ymin=gt_data[start_idx + 4],
+        bbox = NormalizedBBox(label=label, xmin=gt_data[start_idx + 3], ymin=gt_data[start_idx + 4],
                               xmax=gt_data[start_idx + 5], ymax=gt_data[start_idx + 6], difficult=difficult)
 
         if item_id not in all_gt_bboxes:
@@ -60,7 +60,7 @@ def GetPriorBBoxes(prior_data, num_priors, prior_bboxes, prior_variances):
 
     for i in range(0, num_priors):
         start_idx = i * 4
-        bbox = NormalizedBBox(None, xmin=prior_data[start_idx], ymin=prior_data[start_idx + 1],
+        bbox = NormalizedBBox(label=None, xmin=prior_data[start_idx], ymin=prior_data[start_idx + 1],
                               xmax=prior_data[start_idx + 2], ymax=prior_data[start_idx + 3], difficult=None)
         prior_bboxes.append(bbox)
 
@@ -73,8 +73,50 @@ def GetPriorBBoxes(prior_data, num_priors, prior_bboxes, prior_variances):
         prior_variances.append(var)
 
 
+def GetLocPredictions(loc_data, num, num_preds_per_class, num_loc_classes,
+                      share_location, loc_preds):
+    """Get location predictions from loc_data.
+
+    # Arguments
+        loc_data: num x num_preds_per_class * num_loc_classes * 4 blob.
+        num: the number of images.
+        num_preds_per_class: number of predictions per class.
+        num_loc_classes: number of location classes.
+            It is 1 if share_location is true;
+            and is equal to number of classes needed to predict otherwise.
+        share_location: if true, all classes share the same location prediction.
+        loc_preds: stores the location prediction, where each item contains location prediction for an image.
+            vector<LabelBBox>* loc_preds where LabelBBox is:
+            typedef map<int, vector<NormalizedBBox> > LabelBBox;
+    """
+    del loc_preds[:]
+
+    if share_location and num_loc_classes != 1:
+        raise ValueError("When share_location is True, num_loc_classes should be 1, but got {}".format(num_loc_classes))
+
+    loc_data_start_idx = 0
+    for i in range(0, num):
+
+        label_bbox = {}
+        loc_preds.append(label_bbox)
+        for p in range(0, num_preds_per_class):
+            start_idx = loc_data_start_idx + p * num_loc_classes * 4
+
+            for c in range(0, num_loc_classes):
+                label = -1 if share_location else c
+
+                if label not in label_bbox:
+                    label_bbox[label] = [NormalizedBBox(label=label)]*num_preds_per_class
+
+                label_bbox[label][p].xmin = loc_data[start_idx + c * 4]
+                label_bbox[label][p].ymin = loc_data[start_idx + c * 4 + 1]
+                label_bbox[label][p].xmax = loc_data[start_idx + c * 4 + 2]
+                label_bbox[label][p].ymax = loc_data[start_idx + c * 4 + 3]
+
+        loc_data_start_idx += num_preds_per_class * num_loc_classes * 4
+
 class NormalizedBBox(object):
-    def __init__(self, label, xmin, ymin, xmax, ymax, difficult):
+    def __init__(self, label=None, xmin=None, ymin=None, xmax=None, ymax=None, difficult=None):
         self._label = label
         self._xmin = xmin
         self._ymin = ymin
@@ -126,6 +168,9 @@ class NormalizedBBox(object):
 
 # Compute bbox size.
 def BBoxSize(bbox, normalized=True):
+    if bbox.xmax is None or bbox.xmin is None or bbox.ymax is None or bbox.ymin is None:
+        return None
+
     if bbox.xmax < bbox.xmin or bbox.ymax < bbox.ymin:
         #If bbox is invalid (e.g.xmax < xmin or ymax < ymin), return 0.
         return 0
