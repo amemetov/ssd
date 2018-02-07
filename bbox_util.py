@@ -39,12 +39,38 @@ def GetGroundTruth(gt_data, num_gt, background_label_id, use_difficult_gt, all_g
             continue
 
         bbox = NormalizedBBox(label, xmin=gt_data[start_idx + 3], ymin=gt_data[start_idx + 4],
-            xmax=gt_data[start_idx + 5], ymax=gt_data[start_idx + 6], difficult=difficult)
+                              xmax=gt_data[start_idx + 5], ymax=gt_data[start_idx + 6], difficult=difficult)
 
         if item_id not in all_gt_bboxes:
             all_gt_bboxes[item_id] = []
         all_gt_bboxes[item_id].append(bbox)
 
+
+def GetPriorBBoxes(prior_data, num_priors, prior_bboxes, prior_variances):
+    """Get prior bounding boxes from prior_data.
+
+    # Arguments
+        prior_data: 1 x 2 x num_priors * 4 x 1 blob.
+        num_priors: number of priors.
+        prior_bboxes: stores all the prior bboxes in the format of NormalizedBBox.
+        prior_variances: stores all the variances needed by prior bboxes.
+    """
+    del prior_bboxes[:]
+    del prior_variances[:]
+
+    for i in range(0, num_priors):
+        start_idx = i * 4
+        bbox = NormalizedBBox(None, xmin=prior_data[start_idx], ymin=prior_data[start_idx + 1],
+                              xmax=prior_data[start_idx + 2], ymax=prior_data[start_idx + 3], difficult=None)
+        prior_bboxes.append(bbox)
+
+    for i in range(0, num_priors):
+        start_idx = (num_priors + i) * 4
+        # var = []
+        # for j in range(0, 4):
+        #     var.append(prior_data[start_idx + j])
+        var = prior_data[start_idx:start_idx+4]
+        prior_variances.append(var)
 
 
 class NormalizedBBox(object):
@@ -96,7 +122,6 @@ class NormalizedBBox(object):
     @property
     def size(self):
         return self._size
-
 
 
 # Compute bbox size.
