@@ -54,7 +54,7 @@ class SsdLoss(object):
         loc_loss = self._calc_loc_loss(y_true, y_pred, y_true_pb_gtb_matching)
         conf_loss = self._calc_conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_size, num_boxes)
 
-        return (1./num_pos)*(conf_loss + self.loc_alpha*loc_loss)
+        return (conf_loss + self.loc_alpha*loc_loss) / K.maximum(1.0, num_pos)
 
 
     def _calc_loc_loss(self, y_true, y_pred, y_true_pb_gtb_matching):
