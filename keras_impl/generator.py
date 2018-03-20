@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 
 import os
 
@@ -33,7 +34,7 @@ class Generator(object):
 
                 for img_file_name in samples_batch:
                     img_full_path = os.path.join(self.img_dir, img_file_name)
-                    img = plt.imread(img_full_path)#.astype('float32')
+                    img = plt.imread(img_full_path).astype('float32')
                     y = self.gtb[img_file_name].copy()
 
                     img, y = self._randomize_img(img, y)
@@ -45,4 +46,17 @@ class Generator(object):
 
 
 
+
+if __name__ == '__main__':
+    import argparse
+    import pickle
+
+    img_dir = '../../datasets/voc2012/VOCtrainval_11-May-2012/JPEGImages/'
+    gtb = pickle.load(open('../data/pascal_voc_2012.p', 'rb'))
+    gen = Generator(gtb, img_dir)
+
+    img_file_names = shuffle(list(gtb.keys()))
+    train_imgs, valid_imgs = train_test_split(img_file_names, test_size=0.1)
+
+    gen.flow(train_imgs)
 
