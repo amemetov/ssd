@@ -1,7 +1,6 @@
-import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
+from keras.preprocessing import image as keras_imaging
 
 import os
 
@@ -13,11 +12,12 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir):
+    def __init__(self, gtb, img_dir, image_size=(300, 300)):
         self.gtb = gtb
         self.img_dir = img_dir
+        self.image_size = image_size
 
-    def _randomize_img(self, img, y):
+    def _augment_data(self, img, y):
         # TODO: implement
         return img, y
 
@@ -34,10 +34,13 @@ class Generator(object):
 
                 for img_file_name in samples_batch:
                     img_full_path = os.path.join(self.img_dir, img_file_name)
-                    img = plt.imread(img_full_path).astype('float32')
+                    img = keras_imaging.load_img(img_full_path, target_size=self.image_size)
+                    img = keras_imaging.img_to_array(img)
+
+
                     y = self.gtb[img_file_name].copy()
 
-                    img, y = self._randomize_img(img, y)
+                    img, y = self._augment_data(img, y)
 
                     x_batch.append(img)
                     y_batch.append(y)
@@ -58,5 +61,9 @@ if __name__ == '__main__':
     img_file_names = shuffle(list(gtb.keys()))
     train_imgs, valid_imgs = train_test_split(img_file_names, test_size=0.1)
 
-    gen.flow(train_imgs)
+    res = gen.flow(train_imgs)
+    print(res)
+
+    for X, y in res:
+        print(y)
 
