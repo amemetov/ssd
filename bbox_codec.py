@@ -1,5 +1,23 @@
 import numpy as np
 
+def intersectionOverUnion(gtb, pb):
+    # find left-top and right-bottom of intersection
+    left = max(gtb[0], pb[0])
+    top = max(gtb[1], pb[1])
+    right = min(gtb[2], pb[2])
+    bottom = min(gtb[3], pb[3])
+
+    # area of intersection
+    inter_area = (right - left) * (bottom - top)
+
+    gtb_area = (gtb[2] - gtb[0]) * (gtb[3] - gtb[1])
+    pb_area = (pb[2] - pb[0]) * (pb[3] - pb[1])
+
+    union_area = gtb_area + pb_area - inter_area
+
+    iou = inter_area / union_area
+    return iou
+
 class BBoxCodec(object):
     def __init__(self, prior_boxes, num_classes, iou_threshold=0.5):
         self.prior_boxes = prior_boxes
@@ -48,7 +66,7 @@ class BBoxCodec(object):
                 y_result[pb_idx][4] = 0.0
 
                 # copy probabilities of categories
-                y_result[pb_idx][5:-8] = gtb[4]
+                y_result[pb_idx][5:-8] = gtb[4:]
 
                 # set indicator to point that this PB matched to GTB - is used by SsdLoss
                 y_result[pb_idx][-8] = 1
@@ -64,11 +82,10 @@ class BBoxCodec(object):
 
         # find the most overlapped PB with iou(gtb, pb) > iou_threshold
         max_iou = 0
-        most_overlapped_pb = None
         most_overlapped_pb_idx = None
         for pb_idx in range(self.num_priors):
             pb =self.prior_boxes[pb_idx]
-            iou = self._iou(gtb, pb)
+            iou = intersectionOverUnion(gtb, pb)
             if iou > self.iou_threshold and iou > max_iou:
                 max_iou = iou
                 most_overlapped_pb = pb
@@ -76,20 +93,3 @@ class BBoxCodec(object):
 
         return most_overlapped_pb_idx
 
-    def _iou(self, gtb, pb):
-        # find left-top and right-bottom of intersection
-        left = max(gtb[0], pb[0])
-        top = max(gtb[1], pb[1])
-        right = min(gtb[2], pb[2])
-        bottom = min(gtb[3], pb[3])
-
-        # area of intersection
-        inter_area = (right - left) * (bottom - top)
-
-        gtb_area = (gtb[2] - gtb[0]) * (gtb[3] - gtb[1])
-        pb_area = (pb[2] - pb[0]) * (pb[3] - pb[1])
-
-        union_area = gtb_area + pb_area - inter_area
-
-        iou = inter_area / union_area
-        return iou
