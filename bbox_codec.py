@@ -65,7 +65,7 @@ class BBoxCodec(object):
         # max_iou[:, 0] - idx of PB, max_iou[:, 1] - iou value itself
         max_iou = np.apply_along_axis(self.__find_most_overlapped_pb_vect, 1, y_orig)
         threshold_mask = max_iou[:, 1] > self.iou_threshold
-        pb_indices = max_iou[threshold_mask][:, 0].astype(np.int)
+        pb_indices = max_iou[threshold_mask, 0].astype(np.int)
 
         # copy GTB loc
         y_result[pb_indices, :4] = y_orig[threshold_mask, :4]
