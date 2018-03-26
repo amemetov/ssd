@@ -26,6 +26,27 @@ default_prior_variance = [0.1, 0.1, 0.2, 0.2]
 default_flip = True
 default_clip = True
 
+default_config = [
+    {'layer_width': 38, 'layer_height': 38, 'num_prior': 4,
+     'min_size': 30.0, 'max_size': 60.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]},
+
+    {'layer_width': 19, 'layer_height': 19, 'num_prior': 6,
+     'min_size': 60.0, 'max_size': 111.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
+
+    {'layer_width': 10, 'layer_height': 10, 'num_prior': 6,
+     'min_size': 111.0, 'max_size': 162.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
+
+    {'layer_width': 5, 'layer_height': 5, 'num_prior': 6,
+     'min_size': 162.0, 'max_size': 213.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
+
+    {'layer_width': 3, 'layer_height': 3, 'num_prior': 4,
+     'min_size': 213.0, 'max_size': 264.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]},
+
+    {'layer_width': 1, 'layer_height': 1, 'num_prior': 4,
+     'min_size': 264.0, 'max_size': 315.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]}
+]
+
+
 def gen_prior_boxes_config(img_w, img_h, layers, normalizations, layers_size, aspect_ratios,
                            flip=True, min_ratio=20, max_ratio = 90):
     assert len(layers_size) == len(aspect_ratios)

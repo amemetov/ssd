@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
+import time
 
 import prior_box as pb
-import bbox_codec
 from bbox_codec import intersectionOverUnion, BBoxCodec
 
 class BBoxCodecTest(unittest.TestCase):
@@ -20,10 +20,18 @@ class BBoxCodecTest(unittest.TestCase):
         self.assertEqual(9./25, intersectionOverUnion([2, 2, 8, 8], [0, 0, 10, 10]))
 
     def test_encode_iter(self):
+        start_time = time.time()
         self.__test_encode(False)
+        elapsed_time = time.time() - start_time
+        print("iter spent time: {}".format(elapsed_time))
+        # iter spent time: 0.07794070243835449
 
     def test_encode_vect(self):
+        start_time = time.time()
         self.__test_encode(True)
+        elapsed_time = time.time() - start_time
+        print("vect spent time: {}".format(elapsed_time))
+        # vect spent time: 0.00211334228515625
 
     def __test_encode(self, use_vect):
         num_classes = 2
@@ -32,8 +40,10 @@ class BBoxCodecTest(unittest.TestCase):
              'min_size': 276.0, 'max_size': 330.0, 'aspect_ratios': [1.0, 1.0, 2.0, 1 / 2.0, 3.0, 1 / 3.0]},
         ]
         prior_boxes = pb.create_prior_boxes_vect(300, 300, config_1x1, pb.default_prior_variance)
-
         self.assertEqual(6, len(prior_boxes), 'Expected 6 prior boxes')
+
+        # for performance comparing can be used below prior_boxes
+        # prior_boxes = pb.create_prior_boxes_vect(300, 300, pb.default_config, pb.default_prior_variance)
 
         bbox_codec = BBoxCodec(prior_boxes, num_classes, use_vect=use_vect)
 

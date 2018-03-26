@@ -45,7 +45,6 @@ class BBoxCodec(object):
         """
         num_gtb = y_orig.shape[0]
 
-
         # init y_result by zeros
         y_result = np.zeros((self.num_priors, 4 + self.result_num_classes + 8))
 
@@ -62,21 +61,19 @@ class BBoxCodec(object):
         return y_result
 
     def __encode_vect(self, y_orig, y_result):
-        for gtb in y_orig:
-            pb_idx = self.__find_most_overlapped_pb_vect(gtb)
-            if pb_idx is not None:
-                pb = self.prior_boxes[pb_idx]
-                # copy GTB loc
-                y_result[pb_idx][:4] = gtb[:4]
+        pb_indices = np.apply_along_axis(self.__find_most_overlapped_pb_vect, 1, y_orig)
 
-                # probability of the background_class is 0
-                y_result[pb_idx][4] = 0.0
+        # copy GTB loc
+        y_result[pb_indices, :4] = y_orig[:, :4]
 
-                # copy probabilities of categories
-                y_result[pb_idx][5:-8] = gtb[4:]
+        # probability of the background_class is 0
+        y_result[pb_indices, 4] = 0.0
 
-                # set indicator to point that this PB matched to GTB - is used by SsdLoss
-                y_result[pb_idx][-8] = 1
+        # copy probabilities of categories
+        y_result[pb_indices, 5:-8] = y_orig[:, 4:]
+
+        # set indicator to point that this PB matched to GTB - is used by SsdLoss
+        y_result[pb_indices, -8] = 1
 
     def __encode_iter(self, y_orig, y_result):
         for gtb in y_orig:
