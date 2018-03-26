@@ -19,12 +19,13 @@ def intersectionOverUnion(gtb, pb):
     return iou
 
 class BBoxCodec(object):
-    def __init__(self, prior_boxes, num_classes, iou_threshold=0.5):
+    def __init__(self, prior_boxes, num_classes, iou_threshold=0.5, use_vect=True):
         self.prior_boxes = prior_boxes
         self.num_priors = len(prior_boxes)
         self.num_classes = num_classes
         self.result_num_classes = num_classes + 1
         self.iou_threshold = iou_threshold
+        self.use_vect = use_vect
 
     def encode(self, y_orig):
         """Convert Y from origin format to NN expected format
@@ -53,10 +54,16 @@ class BBoxCodec(object):
         if num_gtb == 0:
             return y_result
 
+        if self.use_vect:
+            self.__encode_vect(y_orig, y_result)
+        else:
+            self.__encode_iter(y_orig, y_result)
 
-        # TODO: Implement using numpy vectorized methods
+        return y_result
+
+    def __encode_vect(self, y_orig, y_result):
         for gtb in y_orig:
-            pb_idx = self._find_most_overlapped_pb(gtb)
+            pb_idx = self.__find_most_overlapped_pb_vect(gtb)
             if pb_idx is not None:
                 pb = self.prior_boxes[pb_idx]
                 # copy GTB loc
@@ -71,9 +78,48 @@ class BBoxCodec(object):
                 # set indicator to point that this PB matched to GTB - is used by SsdLoss
                 y_result[pb_idx][-8] = 1
 
-        return y_result
+    def __encode_iter(self, y_orig, y_result):
+        for gtb in y_orig:
+            pb_idx = self.__find_most_overlapped_pb_iter(gtb)
+            if pb_idx is not None:
+                pb = self.prior_boxes[pb_idx]
+                # copy GTB loc
+                y_result[pb_idx][:4] = gtb[:4]
 
-    def _find_most_overlapped_pb(self, gtb):
+                # probability of the background_class is 0
+                y_result[pb_idx][4] = 0.0
+
+                # copy probabilities of categories
+                y_result[pb_idx][5:-8] = gtb[4:]
+
+                # set indicator to point that this PB matched to GTB - is used by SsdLoss
+                y_result[pb_idx][-8] = 1
+
+    def __find_most_overlapped_pb_vect(self, gtb):
+        # calc iou with each prior_boxes in one step
+        iou = self.__iou_vect(gtb)
+        return np.argmax(iou)
+
+    def __iou_vect(self, gtb):
+        # find left-top and right-bottom of intersection
+        left = np.maximum(gtb[0], self.prior_boxes[:, 0])
+        top = np.maximum(gtb[1], self.prior_boxes[:, 1])
+        right = np.minimum(gtb[2], self.prior_boxes[:, 2])
+        bottom = np.minimum(gtb[3], self.prior_boxes[:, 3])
+
+        # area of intersection
+        inter_area = (right - left) * (bottom - top)
+
+        gtb_area = (gtb[2] - gtb[0]) * (gtb[3] - gtb[1])
+        # TODO: move calculating pb_area to __init and reuse it
+        pb_area = (self.prior_boxes[:, 2] - self.prior_boxes[:, 0]) * (self.prior_boxes[:, 3] - self.prior_boxes[:, 1])
+
+        union_area = gtb_area + pb_area - inter_area
+
+        iou = inter_area / union_area
+        return iou
+
+    def __find_most_overlapped_pb_iter(self, gtb):
         """
 
         # Arguments
