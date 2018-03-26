@@ -12,9 +12,9 @@ from keras.layers import Reshape
 from keras.optimizers import Adam
 
 # from keras.applications import VGG16
-from .vgg import VGG16
+from vgg import VGG16
 
-from .layers import L2Normalize, PriorBox
+from layers import L2Normalize, PriorBox
 
 # layers_config = [
 #     {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
