@@ -1,6 +1,7 @@
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from keras.preprocessing import image as keras_imaging
+from bbox_codec import BBoxCodec
 
 import os
 
@@ -12,9 +13,10 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir, image_size=(300, 300)):
+    def __init__(self, gtb, img_dir, bbox_codec, image_size=(300, 300)):
         self.gtb = gtb
         self.img_dir = img_dir
+        self.bbox_codec = bbox_codec
         self.image_size = image_size
 
     def _augment_data(self, img, y):
@@ -37,13 +39,17 @@ class Generator(object):
                     img = keras_imaging.load_img(img_full_path, target_size=self.image_size)
                     img = keras_imaging.img_to_array(img)
 
-
+                    # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
 
+                    # Do data augmentation
                     img, y = self._augment_data(img, y)
 
+                    # Convert origin GTBs to format expected by NN
+                    y_encoded = self.bbox_codec.encode(y)
+
                     x_batch.append(img)
-                    y_batch.append(y)
+                    y_batch.append(y_encoded)
 
                 yield x_batch, y_batch
 
