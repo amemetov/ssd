@@ -61,16 +61,20 @@ class BBoxCodec(object):
         return y_result
 
     def __encode_vect(self, y_orig, y_result):
-        pb_indices = np.apply_along_axis(self.__find_most_overlapped_pb_vect, 1, y_orig)
+        # max_iou - 2D tensor (num_gtb, 2) where
+        # max_iou[:, 0] - idx of PB, max_iou[:, 1] - iou value itself
+        max_iou = np.apply_along_axis(self.__find_most_overlapped_pb_vect, 1, y_orig)
+        threshold_mask = max_iou[:, 1] > self.iou_threshold
+        pb_indices = max_iou[threshold_mask][:, 0].astype(np.int)
 
         # copy GTB loc
-        y_result[pb_indices, :4] = y_orig[:, :4]
+        y_result[pb_indices, :4] = y_orig[threshold_mask, :4]
 
         # probability of the background_class is 0
         y_result[pb_indices, 4] = 0.0
 
         # copy probabilities of categories
-        y_result[pb_indices, 5:-8] = y_orig[:, 4:]
+        y_result[pb_indices, 5:-8] = y_orig[threshold_mask, 4:]
 
         # set indicator to point that this PB matched to GTB - is used by SsdLoss
         y_result[pb_indices, -8] = 1
@@ -79,7 +83,6 @@ class BBoxCodec(object):
         for gtb in y_orig:
             pb_idx = self.__find_most_overlapped_pb_iter(gtb)
             if pb_idx is not None:
-                pb = self.prior_boxes[pb_idx]
                 # copy GTB loc
                 y_result[pb_idx][:4] = gtb[:4]
 
@@ -95,7 +98,8 @@ class BBoxCodec(object):
     def __find_most_overlapped_pb_vect(self, gtb):
         # calc iou with each prior_boxes in one step
         iou = self.__iou_vect(gtb)
-        return np.argmax(iou)
+        max_idx = np.argmax(iou)
+        return max_idx, iou[max_idx]
 
     def __iou_vect(self, gtb):
         # find left-top and right-bottom of intersection
@@ -131,7 +135,6 @@ class BBoxCodec(object):
             iou = intersectionOverUnion(gtb, pb)
             if iou > self.iou_threshold and iou > max_iou:
                 max_iou = iou
-                most_overlapped_pb = pb
                 most_overlapped_pb_idx = pb_idx
 
         return most_overlapped_pb_idx
