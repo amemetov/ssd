@@ -27,7 +27,7 @@ def randomize_contrast(img, contrast_lower=0.5, contrast_upper=1.5):
     # return img
 
     hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    contrast = np.random.uniform(-contrast_lower, contrast_upper)
+    contrast = np.random.uniform(contrast_lower, contrast_upper)
     # V in range [0, 255]
     hsv[:, :, 2] = np.clip(hsv[:, :, 2] * contrast, 0, 255)
     return cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
