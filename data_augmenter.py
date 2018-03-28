@@ -48,8 +48,10 @@ class DataAugmenter(object):
 
     def __horizontally_flip(self, img, y):
         if self.__flip_coin():
-            # TODO: Implement
-            return img, y
+            # y - rows of [xmin, ymin, xmax, ymax]
+            # flip xmin with xmax
+            y[:, [0, 2]] = 1 - y[:, [2, 0]]
+            return imaging.flip_horiz(img), y
         return img, y
 
     def __apply_photo_metric_distortions(self, img):
