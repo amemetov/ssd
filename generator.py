@@ -42,6 +42,9 @@ class Generator(object):
                     # Do data augmentation
                     img, y = self.data_augmenter.augment(img, y)
 
+                    # normalize
+                    img = img / 127.5 - 1.0
+
                     # Convert origin GTBs to format expected by NN
                     y_encoded = self.bbox_codec.encode(y)
 
