@@ -2,6 +2,7 @@ import os
 import numpy as np
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
+from scipy.misc.pilutil import imread
 from PIL import Image as pil_image
 
 from bbox_codec import BBoxCodec
@@ -14,15 +15,12 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir, bbox_codec, image_size=(300, 300)):
+    def __init__(self, gtb, img_dir, data_augmenter, bbox_codec, image_size=(300, 300)):
         self.gtb = gtb
         self.img_dir = img_dir
+        self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
         self.image_size = image_size
-
-    def _augment_data(self, img, y):
-        # TODO: implement
-        return img, y
 
     def flow(self, img_file_names, batch_size=32):
         num_samples = len(img_file_names)
@@ -37,14 +35,17 @@ class Generator(object):
 
                 for img_file_name in samples_batch:
                     img_full_path = os.path.join(self.img_dir, img_file_name)
-                    img = load_img(img_full_path, target_size=self.image_size)
-                    img = img_to_array(img)
+                    #img = load_img(img_full_path, target_size=self.image_size)
+                    #img = img_to_array(img)
+                    img = imread(img_full_path).astype('float32')
+                    #
+
 
                     # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
 
                     # Do data augmentation
-                    img, y = self._augment_data(img, y)
+                    img, y = self.data_augmenter.augment(img, y)
 
                     # Convert origin GTBs to format expected by NN
                     y_encoded = self.bbox_codec.encode(y)
@@ -71,7 +72,7 @@ def load_img(path, grayscale=False, target_size=None):
     """
     if pil_image is None:
         raise ImportError('Could not import PIL.Image. '
-                          'The use of `array_to_img` requires PIL.')
+                          'The use of `load_img` requires PIL.')
     img = pil_image.open(path)
     if grayscale:
         if img.mode != 'L':
