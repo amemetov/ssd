@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.misc.pilutil import imresize
 
+import imaging
+
 class DataAugmenter(object):
     def __init__(self, target_image_size):
         self.target_image_size = target_image_size
@@ -16,7 +18,7 @@ class DataAugmenter(object):
         img, y = self.__horizontally_flip(img, y)
 
         # 4. Photo-metric distortions
-        img, y = self.__apply_photo_metric_distortions(img, y)
+        img = self.__apply_photo_metric_distortions(img)
 
         return img, y
 
@@ -50,9 +52,20 @@ class DataAugmenter(object):
             return img, y
         return img, y
 
-    def __apply_photo_metric_distortions(self, img, y):
-        # TODO: Implement
-        return img, y
+    def __apply_photo_metric_distortions(self, img):
+        if self.__flip_coin():
+            img = imaging.randomize_brightness(img)
+
+        if self.__flip_coin():
+            img = imaging.randomize_contrast(img)
+
+        if self.__flip_coin():
+            img = imaging.randomize_hue(img)
+
+        if self.__flip_coin():
+            img = imaging.randomize_saturation(img)
+
+        return img
 
     def __flip_coin(self):
         return True if np.random.random() < 0.5 else False
