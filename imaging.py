@@ -6,6 +6,9 @@ def load_img(path):
     # loads image as uint8
     return imread(path)
 
+def flip_horiz(img):
+    return np.fliplr(img)
+
 def randomize_brightness(img, brightness_delta=32):
     # brightness = np.random.uniform(-brightness_delta, brightness_delta)
     # img = np.clip(img + brightness, 0, 255)
