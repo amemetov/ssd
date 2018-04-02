@@ -95,12 +95,16 @@ class SsdLoss(object):
         # clipped above using hard_neg_pos_ratio
         # num_neg = K.minimum(self.hard_neg_pos_ratio * num_pos, num_boxes - num_pos)
 
-        num_neg = K.minimum(self.hard_neg_pos_ratio * num_pos, batch_size * num_boxes - num_pos)
+        num_neg = K.cast(batch_size * num_boxes, dtype='float32') - num_pos
+        num_neg = K.minimum(self.hard_neg_pos_ratio * num_pos, num_neg)
         if num_neg == 0:
             return 0
 
         # get negatives
-        negatives_indices = y_true[:, :, -8] == 0
+        #negatives_indices = y_true[:, :, -8] == 0
+        negatives_indices = K.equal(y_true[:, :, -8], 0)
+        print('y_true: {}'.format(y_true))
+        print('negatives_indices: {}'.format(negatives_indices))
 
         # tensor shape (total_num_neg, 4 + num_classes + 4 + 4)
         negatives_true = y_true[negatives_indices]
