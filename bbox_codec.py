@@ -73,7 +73,7 @@ class BBoxCodec(object):
         y_result[pb_indices, 4] = 0.0
 
         # copy probabilities of categories
-        y_result[pb_indices, 5:-8] = y_orig[threshold_mask, 4:]
+        y_result[pb_indices, 5:-8] = y_orig[threshold_mask, 5:]
 
         # set indicator to point that this PB matched to GTB - is used by SsdLoss
         y_result[pb_indices, -8] = 1
