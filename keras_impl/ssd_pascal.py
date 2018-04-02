@@ -12,9 +12,9 @@ from keras.layers import Reshape
 from keras.optimizers import Adam
 
 # from keras.applications import VGG16
-from vgg import VGG16
+from .vgg import VGG16
 
-from layers import L2Normalize, PriorBox
+from .layers import L2Normalize, PriorBox
 
 # layers_config = [
 #     {'layer': 'conv4_3', 'normalization': 20, 'layer_width': 38, 'layer_height': 38, 'num_prior': 3,
@@ -89,22 +89,6 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
     _freezeLayers(model, freeze_layers)
 
     return model
-
-
-    # AddExtraLayers(net, use_bn, lr_mult=lr_mult)
-    #
-    # mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source_layers,
-    #                                  use_bn=use_bn, min_sizes=min_sizes, max_sizes=max_sizes,
-    #                                  aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
-    #                                  num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-    #                                  prior_variance=prior_variance, kernel_size=3, pad=1, lr_mult=lr_mult)
-    #
-    # # Create the MultiBoxLossLayer.
-    # name = "mbox_loss"
-    # mbox_layers.append(net.label)
-    # net[name] = L.MultiBoxLoss(*mbox_layers, multibox_loss_param=multibox_loss_param,
-    #                            loss_param=loss_param, include=dict(phase=caffe_pb2.Phase.Value('TRAIN')),
-    #                            propagate_down=[True, True, False, False])
 
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception).
@@ -225,18 +209,18 @@ def CreateMultiBoxHead(net, img_size, num_classes, layers_config,
 
 
 def createPredictionsLayer(net, num_classes):
-    # Reshape loc and conf
+    # Reshape loc
     num_boxes = K.int_shape(net['mbox_priorbox'])[1]
     net['mbox_loc_reshape'] = Reshape(target_shape=(num_boxes, 4), name='mbox_loc_reshape')(net['mbox_loc'])
-    net['mbox_conf_reshape'] = Reshape(target_shape=(num_boxes, num_classes), name='mbox_conf_reshape')(net['mbox_conf'])
 
     # Add softmax activation for conf
     net['mbox_conf_softmax'] = Activation(activation='softmax', name='mbox_conf_softmax')(net['mbox_conf'])
+    # Reshape conf
+    net['mbox_conf_reshape'] = Reshape(target_shape=(num_boxes, num_classes), name='mbox_conf_reshape')(net['mbox_conf_softmax'])
 
     # we have layers with shapes: [(None, 8732, 4), (None, 8732, 21), (None, 8732, 8)]
     # concatenate them at axis=2
-    net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_softmax'], net['mbox_priorbox']],
-                                     axis=2, name='predictions')
+    net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_reshape'], net['mbox_priorbox']], axis=2, name='predictions')
 
     return net['predictions']
 
