@@ -51,7 +51,7 @@ class Generator(object):
                     x_batch.append(img)
                     y_batch.append(y_encoded)
 
-                yield x_batch, y_batch
+                yield np.array(x_batch), np.array(y_batch)
 
 
 if __name__ == '__main__':
