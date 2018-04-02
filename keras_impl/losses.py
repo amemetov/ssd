@@ -1,7 +1,6 @@
-import numpy as np
-
 import keras.backend as K
 from keras import losses
+import tensorflow as tf
 
 class SsdLoss(object):
     def __init__(self, num_classes, loc_alpha=1.0, hard_neg_pos_ratio=3.0,
@@ -101,25 +100,25 @@ class SsdLoss(object):
             return 0
 
         # get negatives
-        #negatives_indices = y_true[:, :, -8] == 0
-        negatives_indices = K.equal(y_true[:, :, -8], 0)
-        print('y_true: {}'.format(y_true))
-        print('negatives_indices: {}'.format(negatives_indices))
+        negatives_indices = K.equal(y_true[:, :, -8], 0) # y_true[:, :, -8] == 0
 
         # tensor shape (total_num_neg, 4 + num_classes + 4 + 4)
-        negatives_true = y_true[negatives_indices]
-        negatives_pred = y_pred[negatives_indices]
+        negatives_true = tf.boolean_mask(y_true, negatives_indices) # y_true[negatives_indices]
+        negatives_pred = tf.boolean_mask(y_pred, negatives_indices) # y_pred[negatives_indices]
 
         # define conf indices excluding background
         conf_start_idx = 4 + self.background_class_id + 1
         conf_end_idx = conf_start_idx + self.num_classes - 1
+
         # (total_num_neg,)
-        max_confs = np.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
-        top_indices = np.argpartition(max_confs, -num_neg)[-num_neg:] # top num_neg elements (not ordered)
+        #max_confs = np.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
+        #top_indices = np.argpartition(max_confs, -num_neg)[-num_neg:] # top num_neg elements (not ordered)
+        max_confs = K.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
+        _, top_indices = tf.nn.top_k(max_confs, k=K.cast(num_neg, 'int32'))
 
         # get top negatives
-        negatives_true = negatives_true[top_indices]
-        negatives_pred = negatives_pred[top_indices]
+        negatives_true = K.gather(negatives_true, top_indices) # negatives_true[top_indices]
+        negatives_pred = K.gather(negatives_pred, top_indices) # negatives_pred[top_indices]
 
         return self._softmax_loss(negatives_true, negatives_pred)
 
