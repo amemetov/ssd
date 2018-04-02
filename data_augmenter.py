@@ -29,6 +29,9 @@ class DataAugmenter(object):
         return img, y
 
     def __randomly_sample_patch(self, img, y):
+        if len(y) == 0:
+            return img, y
+
         if not self.__flip_coin():
             return img, y
 
@@ -97,6 +100,9 @@ class DataAugmenter(object):
         return False
 
     def __horizontally_flip(self, img, y):
+        if len(y) == 0:
+            return img, y
+
         if self.__flip_coin():
             # y - rows of [xmin, ymin, xmax, ymax]
             # flip xmin with xmax
