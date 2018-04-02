@@ -23,7 +23,6 @@ class BBoxCodec(object):
         self.prior_boxes = prior_boxes
         self.num_priors = len(prior_boxes)
         self.num_classes = num_classes
-        self.result_num_classes = num_classes + 1
         self.iou_threshold = iou_threshold
         self.use_vect = use_vect
 
@@ -46,7 +45,7 @@ class BBoxCodec(object):
         num_gtb = y_orig.shape[0]
 
         # init y_result by zeros
-        y_result = np.zeros((self.num_priors, 4 + self.result_num_classes + 8))
+        y_result = np.zeros((self.num_priors, 4 + self.num_classes + 8))
 
         # by default assume that all boxes are background - set probability of background = 1
         y_result[:, 4] = 1.0
