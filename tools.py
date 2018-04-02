@@ -21,3 +21,18 @@ def draw_boxes(img, prior_boxes, log=False):
 
     plt.figure(figsize=(24, 12))
     plt.imshow(img)
+
+
+"""
+Plot train/valid loss curves and save plot to the file ./loss_curve.png.
+"""
+def plot_history_curve(history, out_file=None):
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model Loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    if out_file is not None:
+        plt.savefig(out_file)
+    plt.close()
