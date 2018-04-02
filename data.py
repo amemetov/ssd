@@ -36,10 +36,11 @@ class PascalVoc2012(object):
                     one_hot_class = self._to_one_hot(obj_name)
                     one_hot_classes.append(one_hot_class)
             file_name = root.find('filename').text
-            bnd_boxes = np.asarray(bnd_boxes)
-            one_hot_classes = np.asarray(one_hot_classes)
-            image_data = np.hstack((bnd_boxes, one_hot_classes))
-            data[file_name] = image_data
+            if len(bnd_boxes) > 0:
+                bnd_boxes = np.asarray(bnd_boxes)
+                one_hot_classes = np.asarray(one_hot_classes)
+                image_data = np.hstack((bnd_boxes, one_hot_classes))
+                data[file_name] = image_data
         return data
 
     CLASSES = [
