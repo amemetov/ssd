@@ -67,13 +67,13 @@ class SsdLoss(object):
         # tensor of the shape (batch_size)
         # containing loc pos loss for each image (in the batch)
         loc_pos_loss = K.sum(y_true_pb_gtb_matching * loc_loss, axis=1)
-
+        loc_pos_loss = K.sum(loc_pos_loss)
         return loc_pos_loss
 
     def _calc_conf_loss(self, y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_size, num_boxes):
         conf_pos_loss = self._calc_conf_pos_loss(y_true, y_pred, y_true_pb_gtb_matching)
         conf_neg_loss = self._calc_conf_neg_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_size, num_boxes)
-        return conf_pos_loss + conf_neg_loss
+        return K.sum(conf_pos_loss) + K.sum(conf_neg_loss)
 
     def _calc_conf_pos_loss(self, y_true, y_pred, y_true_pb_gtb_matching):
         y_true_classes = y_true[:, :, 4:4 + self.num_classes]
@@ -132,5 +132,7 @@ class SsdLoss(object):
         return K.sum(l1_loss, -1)
 
     def _softmax_loss(self, y_true, y_pred):
+        # prevent division by zero
+        y_pred = K.maximum(y_pred, 1e-15)
         return losses.categorical_crossentropy(y_true, y_pred)
 
