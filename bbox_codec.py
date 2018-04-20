@@ -70,14 +70,28 @@ class BBoxCodec(object):
         threshold_mask = max_iou[:, 1] > self.iou_threshold
         pb_indices = max_iou[threshold_mask, 0].astype(np.int)
 
-        # copy GTB loc
-        y_result[pb_indices, :4] = y_orig[threshold_mask, :4]
+        gt_boxes = y_orig[threshold_mask]
+        box_center = 0.5 * (gt_boxes[:, :2] + gt_boxes[:, 2:4])
+        box_wh = gt_boxes[:, 2:4] - gt_boxes[:, :2]
+
+        prior_boxes = self.prior_boxes[pb_indices]
+        pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
+        pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
+
+        # see loss computing in the origin SSD paper
+        y_result[pb_indices, :2] = (box_center - pb_center) / pb_wh
+        y_result[pb_indices, 2:4] = np.log(box_wh / pb_wh)
+
+        # encode variance of cx, cy
+        y_result[pb_indices, :2] /= prior_boxes[:, -4:-2]
+        # encode variance of w, h
+        y_result[pb_indices, 2:4] /= prior_boxes[:, -2:]
 
         # probability of the background_class is 0
         y_result[pb_indices, 4] = 0.0
 
         # copy probabilities of categories
-        y_result[pb_indices, 5:-8] = y_orig[threshold_mask, 5:]
+        y_result[pb_indices, 5:-8] = gt_boxes[:, 4:]
 
         # set indicator to point that this PB matched to GTB - is used by SsdLoss
         y_result[pb_indices, -8] = 1
@@ -86,8 +100,24 @@ class BBoxCodec(object):
         for gtb in y_orig:
             pb_idx = self.__find_most_overlapped_pb_iter(gtb)
             if pb_idx is not None:
+                box = gtb[:4]
                 # copy GTB loc
-                y_result[pb_idx][:4] = gtb[:4]
+                #y_result[pb_idx][:4] = box
+                box_center = 0.5 * (box[:2] + box[2:4])
+                box_wh = box[2:4] - box[:2]
+
+                pb = self.prior_boxes[pb_idx]
+                pb_center = 0.5 * (pb[:2] + pb[2:4])
+                pb_wh = pb[2:4] - pb[:2]
+
+                # see loss computing in the origin SSD paper
+                y_result[pb_idx][:2] = (box_center - pb_center) / pb_wh
+                y_result[pb_idx][2:4] = np.log(box_wh / pb_wh)
+
+                # encode variance of cx, cy
+                y_result[pb_idx][:2] /= pb[-4:-2]
+                # encode variance of w, h
+                y_result[pb_idx][2:4] /= pb[-2:]
 
                 # probability of the background_class is 0
                 y_result[pb_idx][4] = 0.0

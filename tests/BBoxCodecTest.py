@@ -42,7 +42,7 @@ class BBoxCodecTest(unittest.TestCase):
         prior_boxes = pb.create_prior_boxes_vect(300, 300, config_1x1, pb.default_prior_variance)
         self.assertEqual(6, len(prior_boxes), 'Expected 6 prior boxes')
 
-        bbox_codec = BBoxCodec(prior_boxes, num_classes, use_vect=use_vect)
+        bbox_codec = BBoxCodec(prior_boxes, num_classes+1, use_vect=use_vect)
 
         # (num_gtb, 4 + num_classes)
         y_orig = np.array([[0, 0.25, 1, 0.75, 1, 0], [0.25, 0, 0.75, 1, 0, 1]])
@@ -57,8 +57,17 @@ class BBoxCodecTest(unittest.TestCase):
             [0,    0,    0,    0,    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0,    0,    0,    0,    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0,    0,    0,    0,    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0,    0.25, 1,    0.75, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-            [0.25, 0,    0.75, 1,    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+            #[0,    0.25, 1,    0.75,    0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            #[0.25, 0,    0.75, 1,       0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+
+            #
+            #[0, 0, 0, -0.0604594272868,  0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            #[0, 0,  -0.0604594272868, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+
+            # when encoded variances
+            [0, 0, 0, -0.30229714,  0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, -0.30229714, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+
         ])
 
         self.assertTrue(np.allclose(y_encoded_expected, y_encoded_actual), 'encoded Y is incorrect')
@@ -68,7 +77,7 @@ class BBoxCodecTest(unittest.TestCase):
         num_classes = 2
 
         prior_boxes = pb.create_prior_boxes_vect(300, 300, pb.default_config, pb.default_prior_variance)
-        bbox_codec = BBoxCodec(prior_boxes, num_classes, use_vect=use_vect)
+        bbox_codec = BBoxCodec(prior_boxes, num_classes+1, use_vect=use_vect)
 
         # (num_gtb, 4 + num_classes)
         y_orig = np.array([[0, 0.25, 1, 0.75, 1, 0], [0.25, 0, 0.75, 1, 0, 1]])
