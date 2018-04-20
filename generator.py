@@ -21,7 +21,7 @@ class Generator(object):
         self.bbox_codec = bbox_codec
         self.image_size = image_size
 
-    def flow(self, img_file_names, batch_size=32):
+    def flow(self, img_file_names, do_augment=True, batch_size=32):
         num_samples = len(img_file_names)
         while True:
             samples = shuffle(img_file_names)
@@ -40,7 +40,7 @@ class Generator(object):
                     y = self.gtb[img_file_name].copy()
 
                     # Do data augmentation
-                    img, y = self.data_augmenter.augment(img, y)
+                    img, y = self.data_augmenter.augment(img, y, do_augment)
 
                     # normalize
                     img = img / 127.5 - 1.0

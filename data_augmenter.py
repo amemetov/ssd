@@ -13,18 +13,23 @@ class DataAugmenter(object):
         self.aspect_ratio_range = aspect_ratio_range
         self.jaccard_overlap_range = jaccard_overlap_range
 
-    def augment(self, img, y):
-        # 1. Randomly Sample
-        img, y = self.__randomly_sample_patch(img, y)
+    def augment(self, img, y, do_augment=True):
+        # work with the copy of y
+        y = np.copy(y)
+
+        if do_augment:
+            # 1. Randomly Sample
+            img, y = self.__randomly_sample_patch(img, y)
 
         # 2. Resize to fixed size
         img = imresize(img, self.target_image_size).astype('float32')
 
-        # 3. Horizontally flip
-        img, y = self.__horizontally_flip(img, y)
+        if do_augment:
+            # 3. Horizontally flip
+            img, y = self.__horizontally_flip(img, y)
 
-        # 4. Photo-metric distortions
-        img = self.__apply_photo_metric_distortions(img)
+            # 4. Photo-metric distortions
+            img = self.__apply_photo_metric_distortions(img)
 
         return img, y
 

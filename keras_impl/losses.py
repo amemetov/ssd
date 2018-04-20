@@ -49,11 +49,14 @@ class SsdLoss(object):
 
         # scalar
         num_pos = K.sum(y_true_pb_gtb_matching)
+        if num_pos == 0:
+            return 0
 
         loc_loss = self._calc_loc_loss(y_true, y_pred, y_true_pb_gtb_matching)
         conf_loss = self._calc_conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_size, num_boxes)
 
-        return (conf_loss + self.loc_alpha*loc_loss) / K.maximum(1.0, num_pos)
+
+        return (conf_loss + self.loc_alpha*loc_loss) / num_pos
 
 
     def _calc_loc_loss(self, y_true, y_pred, y_true_pb_gtb_matching):
@@ -100,7 +103,7 @@ class SsdLoss(object):
             return 0
 
         # get negatives
-        negatives_indices = K.equal(y_true[:, :, -8], 0) # y_true[:, :, -8] == 0
+        negatives_indices = K.equal(y_true_pb_gtb_matching, 0) # y_true[:, :, -8] == 0
 
         # tensor shape (total_num_neg, 4 + num_classes + 4 + 4)
         negatives_true = tf.boolean_mask(y_true, negatives_indices) # y_true[negatives_indices]
