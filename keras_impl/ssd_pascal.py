@@ -213,14 +213,15 @@ def createPredictionsLayer(net, num_classes):
     num_boxes = K.int_shape(net['mbox_priorbox'])[1]
     net['mbox_loc_reshape'] = Reshape(target_shape=(num_boxes, 4), name='mbox_loc_reshape')(net['mbox_loc'])
 
-    # Add softmax activation for conf
-    net['mbox_conf_softmax'] = Activation(activation='softmax', name='mbox_conf_softmax')(net['mbox_conf'])
     # Reshape conf
-    net['mbox_conf_reshape'] = Reshape(target_shape=(num_boxes, num_classes), name='mbox_conf_reshape')(net['mbox_conf_softmax'])
+    net['mbox_conf_reshape'] = Reshape(target_shape=(num_boxes, num_classes), name='mbox_conf_reshape')(net['mbox_conf'])
+    # Add softmax activation for conf
+    net['mbox_conf_softmax'] = Activation(activation='softmax', name='mbox_conf_softmax')(net['mbox_conf_reshape'])
 
     # we have layers with shapes: [(None, 8732, 4), (None, 8732, 21), (None, 8732, 8)]
     # concatenate them at axis=2
-    net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_reshape'], net['mbox_priorbox']], axis=2, name='predictions')
+    #net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_reshape'], net['mbox_priorbox']], axis=2, name='predictions')
+    net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_softmax'], net['mbox_priorbox']], axis=2, name='predictions')
 
     return net['predictions']
 
