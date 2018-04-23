@@ -83,9 +83,9 @@ class BBoxCodec(object):
         y_result[pb_indices, 2:4] = np.log(box_wh / pb_wh)
 
         # encode variance of cx, cy
-        y_result[pb_indices, :2] /= prior_boxes[:, -4:-2]
+        #y_result[pb_indices, :2] /= prior_boxes[:, -4:-2]
         # encode variance of w, h
-        y_result[pb_indices, 2:4] /= prior_boxes[:, -2:]
+        #y_result[pb_indices, 2:4] /= prior_boxes[:, -2:]
 
         # probability of the background_class is 0
         y_result[pb_indices, 4] = 0.0
@@ -101,8 +101,6 @@ class BBoxCodec(object):
             pb_idx = self.__find_most_overlapped_pb_iter(gtb)
             if pb_idx is not None:
                 box = gtb[:4]
-                # copy GTB loc
-                #y_result[pb_idx][:4] = box
                 box_center = 0.5 * (box[:2] + box[2:4])
                 box_wh = box[2:4] - box[:2]
 
@@ -115,9 +113,9 @@ class BBoxCodec(object):
                 y_result[pb_idx][2:4] = np.log(box_wh / pb_wh)
 
                 # encode variance of cx, cy
-                y_result[pb_idx][:2] /= pb[-4:-2]
+                #y_result[pb_idx][:2] /= pb[-4:-2]
                 # encode variance of w, h
-                y_result[pb_idx][2:4] /= pb[-2:]
+                #y_result[pb_idx][2:4] /= pb[-2:]
 
                 # probability of the background_class is 0
                 y_result[pb_idx][4] = 0.0
