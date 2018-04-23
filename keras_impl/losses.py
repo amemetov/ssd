@@ -3,12 +3,10 @@ from keras import losses
 import tensorflow as tf
 
 class SsdLoss(object):
-    def __init__(self, num_classes, loc_alpha=1.0, hard_neg_pos_ratio=3,
-                 background_class_id=0):
+    def __init__(self, num_classes, hard_neg_pos_ratio=3):
         self.num_classes = num_classes
-        self.loc_alpha = loc_alpha
+        self.loc_alpha = (hard_neg_pos_ratio + 1.) / 4.
         self.hard_neg_pos_ratio = hard_neg_pos_ratio
-        self.background_class_id = background_class_id
 
     def loss(self, y_true, y_pred):
         """
@@ -81,8 +79,11 @@ class SsdLoss(object):
         return conf_pos_loss + conf_neg_loss
 
     def _calc_conf_pos_loss(self, y_true, y_pred, y_true_pb_gtb_matching):
-        y_true_classes = y_true[:, :, 4:4 + self.num_classes + 1]
-        y_pred_classes = y_pred[:, :, 4:4 + self.num_classes + 1]
+        # define conf indices excluding background
+        conf_start_idx, conf_end_idx = self._foreground_classes_indices()
+
+        y_true_classes = y_true[:, :, conf_start_idx:conf_end_idx]
+        y_pred_classes = y_pred[:, :, conf_start_idx:conf_end_idx]
 
         # conf loss for all PriorBoxes
         conf_loss = self._softmax_loss(y_true_classes, y_pred_classes)
@@ -107,19 +108,16 @@ class SsdLoss(object):
             return 0
 
         # get negatives
-        negatives_indices = K.equal(y_true_pb_gtb_matching, 0) # y_true[:, :, -8] == 0
+        negatives_indices = K.equal(y_true_pb_gtb_matching, 0)
 
         # tensor shape (total_num_neg, 4 + num_classes + 4 + 4)
         negatives_true = tf.boolean_mask(y_true, negatives_indices) # y_true[negatives_indices]
         negatives_pred = tf.boolean_mask(y_pred, negatives_indices) # y_pred[negatives_indices]
 
         # define conf indices excluding background
-        conf_start_idx = 4 + self.background_class_id + 1
-        conf_end_idx = conf_start_idx + self.num_classes
+        conf_start_idx, conf_end_idx = self._foreground_classes_indices()
 
         # (total_num_neg,)
-        #max_confs = np.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
-        #top_indices = np.argpartition(max_confs, -num_neg)[-num_neg:] # top num_neg elements (not ordered)
         max_confs = K.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
         _, top_indices = tf.nn.top_k(max_confs, k=K.cast(num_neg, 'int32'))
 
@@ -129,10 +127,16 @@ class SsdLoss(object):
 
         # (num_neg,)
         # calc loss only for background class
-        conf_neg_loss = self._softmax_loss(negatives_true[:, 4 + self.background_class_id], negatives_pred[:, 4 + self.background_class_id])
+        conf_neg_loss = self._softmax_loss(negatives_true[:, 4], negatives_pred[:, 4])
 
         # scalar
         return K.sum(conf_neg_loss)
+
+    def _foreground_classes_indices(self):
+        # define conf indices excluding background
+        start_idx = 4 + 1
+        end_idx = start_idx + self.num_classes
+        return start_idx, end_idx
 
     def _smooth_l1_loss(self, y_true, y_pred):
         # https://arxiv.org/abs/1504.08083
@@ -144,9 +148,9 @@ class SsdLoss(object):
         return K.sum(l1_loss, -1)
 
     def _softmax_loss(self, y_true, y_pred):
+        #return losses.categorical_crossentropy(y_true, y_pred)
         # prevent division by zero
         y_pred = K.maximum(y_pred, 1e-15)
-        #return losses.categorical_crossentropy(y_true, y_pred)
         log_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
         return log_loss
 

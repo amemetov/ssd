@@ -1,13 +1,15 @@
 import numpy as np
 
-def loss(y_true, y_pred, num_classes, loc_alpha=1.0, hard_neg_pos_ratio=3.0, background_class_id=0):
+def loss(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):
+    loc_alpha = (hard_neg_pos_ratio + 1.) / 4.
+
     batch_size = np.shape(y_true)[0]
     num_boxes = np.shape(y_true)[1]
 
     # (batch_size, num_boxes)
     y_true_pb_gtb_matching = y_true[:, :, -8]
     num_pos = np.sum(y_true_pb_gtb_matching).astype(np.int)
-    # print('num_pos: {}'.format(num_pos))
+    print('num_pos: {}'.format(num_pos))
 
     loc_loss = _loc_loss(y_true, y_pred, y_true_pb_gtb_matching)
     conf_loss = _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_size, num_boxes, num_classes,
@@ -18,7 +20,6 @@ def loss(y_true, y_pred, num_classes, loc_alpha=1.0, hard_neg_pos_ratio=3.0, bac
     print('loc_loss: {}'.format(loc_loss))
 
     return total_loss
-
 
 def _loc_loss(y_true, y_pred, y_true_pb_gtb_matching):
     # extract loc classes and data
@@ -46,8 +47,10 @@ def _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_size, num_
 
 
 def _calc_conf_pos_loss(y_true, y_pred, y_true_pb_gtb_matching, num_classes):
-    y_true_classes = y_true[:, :, 4:4 + num_classes + 1]
-    y_pred_classes = y_pred[:, :, 4:4 + num_classes + 1]
+    # define conf indices excluding background
+    conf_start_idx, conf_end_idx = _foreground_classes_indices(num_classes)
+    y_true_classes = y_true[:, :, conf_start_idx:conf_end_idx]
+    y_pred_classes = y_pred[:, :, conf_start_idx:conf_end_idx]
 
     # conf loss for all PriorBoxes
     # (batch_size, num_boxes)
@@ -74,6 +77,7 @@ def _calc_conf_neg_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_s
     # num_neg = np.cast(batch_size * num_boxes, dtype='float32') - num_pos
     num_neg = (batch_size * num_boxes - num_pos)
     num_neg = (np.minimum(hard_neg_pos_ratio * num_pos, num_neg)).astype(np.int)
+    print('num_neg: {}'.format(num_neg))
     if num_neg == 0:
         return 0
 
@@ -85,9 +89,7 @@ def _calc_conf_neg_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_s
     negatives_pred = y_pred[negatives_indices]
 
     # define conf indices excluding background
-    background_class_id = 0
-    conf_start_idx = 4 + background_class_id + 1
-    conf_end_idx = conf_start_idx + num_classes  # - 1
+    conf_start_idx, conf_end_idx = _foreground_classes_indices(num_classes)
 
     # (total_num_neg,)
     max_confs = np.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
@@ -102,10 +104,15 @@ def _calc_conf_neg_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, batch_s
 
     # (num_neg,)
     # calc loss only for background class
-    conf_neg_loss = _softmax_loss(negatives_true[:, 4 + background_class_id], negatives_pred[:, 4 + background_class_id])
+    conf_neg_loss = _softmax_loss(negatives_true[:, 4], negatives_pred[:, 4])
     # scalar
     return np.sum(conf_neg_loss)
 
+def _foreground_classes_indices(num_classes):
+    # define conf indices excluding background
+    start_idx = 4 + 1
+    end_idx = start_idx + num_classes
+    return start_idx, end_idx
 
 def _smooth_l1_loss(y_true, y_pred):
     # https://arxiv.org/abs/1504.08083

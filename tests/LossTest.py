@@ -53,7 +53,7 @@ class LossTest(unittest.TestCase):
         self.assertAlmostEqual(expected_loss, actual_loss, delta=0.000001)
 
 
-def loss_keras(y_true, y_pred, num_classes, loc_alpha=1.0, hard_neg_pos_ratio=3.0, background_class_id=0):
+def loss_keras(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):
     y_true_keras = K.variable(y_true)
     y_pred_keras = K.variable(y_pred)
     loss = SsdLoss(num_classes=num_classes)
