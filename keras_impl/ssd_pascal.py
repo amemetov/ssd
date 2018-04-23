@@ -220,7 +220,6 @@ def createPredictionsLayer(net, num_classes):
 
     # we have layers with shapes: [(None, 8732, 4), (None, 8732, 21), (None, 8732, 8)]
     # concatenate them at axis=2
-    #net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_reshape'], net['mbox_priorbox']], axis=2, name='predictions')
     net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_softmax'], net['mbox_priorbox']], axis=2, name='predictions')
 
     return net['predictions']
