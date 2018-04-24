@@ -148,7 +148,7 @@ class BBoxCodec(object):
 
         union_area = gtb_area + pb_area - inter_area
 
-        iou = np.where(union_area == 0, 0, inter_area / union_area)
+        iou = np.divide(inter_area, union_area, out=np.zeros_like(union_area), where=union_area != 0)
         return iou
 
     def __find_most_overlapped_pb_iter(self, gtb):
