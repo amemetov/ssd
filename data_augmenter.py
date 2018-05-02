@@ -116,17 +116,19 @@ class DataAugmenter(object):
         return img, y
 
     def __apply_photo_metric_distortions(self, img):
-        if self.__flip_coin():
-            img = imaging.randomize_brightness(img)
+        hsv = None
 
         if self.__flip_coin():
-            img = imaging.randomize_contrast(img)
+            img, hsv = imaging.randomize_brightness(img, hsv)
 
         if self.__flip_coin():
-            img = imaging.randomize_hue(img)
+            img, hsv = imaging.randomize_contrast(img, hsv)
 
         if self.__flip_coin():
-            img = imaging.randomize_saturation(img)
+            img, hsv = imaging.randomize_hue(img, hsv)
+
+        if self.__flip_coin():
+            img, hsv = imaging.randomize_saturation(img, hsv)
 
         return img
 
