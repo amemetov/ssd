@@ -53,10 +53,10 @@ class PascalVoc2012(object):
         return name in self.CLASSES
 
     def _to_one_hot(self, name):
-        nb_classes = len(self.CLASSES) + 1 #for background
+        nb_classes = len(self.CLASSES)# + 1 #for background
         one_hot_vector = [0] * nb_classes
         # method index throws error if there is no such item
-        ind = self.CLASSES.index(name) + 1 #for background
+        ind = self.CLASSES.index(name)# + 1 #for background
         one_hot_vector[ind] = 1
         return one_hot_vector
 
