@@ -11,7 +11,7 @@ import np_losses
 class LossTest(unittest.TestCase):
     def test_loss(self):
 
-        num_classes = 2
+        num_classes = 3
         y_true = np.array([
             # image 1
             [
@@ -49,6 +49,9 @@ class LossTest(unittest.TestCase):
 
         expected_loss = np_losses.loss(y_true, y_pred, num_classes)
         actual_loss = loss_keras(y_true, y_pred, num_classes)
+
+        print('numpy_loss: {}'.format(expected_loss))
+        print('keras_loss: {}'.format(actual_loss))
 
         self.assertAlmostEqual(expected_loss, actual_loss, delta=0.000001)
 
