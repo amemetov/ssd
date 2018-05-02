@@ -8,7 +8,9 @@ def loss(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):
 
     # (batch_size, num_boxes)
     y_true_pb_gtb_matching = y_true[:, :, -8]
-    #num_pos = np.sum(y_true_pb_gtb_matching).astype(np.int)
+
+    # tensor of the shape (batch_size)
+    # containing # of matching boxes for each image (in the batch)
     num_pos = np.sum(y_true_pb_gtb_matching, axis=1).astype(np.int)
     print('num_pos: {}'.format(num_pos))
 
@@ -38,11 +40,8 @@ def _loc_loss(y_true, y_pred, y_true_pb_gtb_matching):
     return np.sum(loc_pos_loss)
 
 def _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes, num_classes, hard_neg_pos_ratio):
-    # conf_pos_loss = _calc_conf_pos_loss(full_conf_loss, y_true_pb_gtb_matching)
-    # conf_neg_loss = _calc_conf_neg_loss(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
-    #                                    num_pos, num_boxes, hard_neg_pos_ratio)
-
     conf_start_idx, conf_end_idx = _classes_indices(num_classes)
+
     # conf loss for all PriorBoxes
     # (batch_size, num_boxes)
     full_conf_loss = _softmax_loss(y_true[:, :, conf_start_idx:conf_end_idx], y_pred[:, :, conf_start_idx:conf_end_idx])
@@ -83,71 +82,6 @@ def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
         top_indices_mask[b][top_indices[b, -num_neg[b]:]] = 1
 
     return top_indices_mask
-
-def _calc_conf_pos_loss(full_conf_loss, y_true_pb_gtb_matching):
-    # tensor of the shape (batch_size)
-    # containing conf pos loss for each image (in the batch)
-    # (batch_size)
-    conf_pos_loss = np.sum(y_true_pb_gtb_matching * full_conf_loss, axis=1)
-
-    # scalar
-    return np.sum(conf_pos_loss)
-
-
-def _calc_conf_neg_loss(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
-                        num_pos, num_boxes, hard_neg_pos_ratio):
-    # hard negative mining
-
-    # tensor of the shape (batch_size)
-    # containing # of not matching boxes for each image (in the batch)
-    # clipped above using hard_neg_pos_ratio
-    num_neg = (num_boxes - num_pos)
-    num_neg = (np.minimum(hard_neg_pos_ratio * num_pos, num_neg)).astype(np.int)
-    print('num_neg: {}'.format(num_neg))
-
-    # get negatives
-    #negatives_indices = y_true_pb_gtb_matching == 0
-    #print('negatives_indices: {}'.format(negatives_indices))
-    #print('negatives_indices.shape: {}'.format(negatives_indices.shape))
-
-    # tensor shape (total_num_neg, 4 + num_classes + 4 + 4)
-    #negatives_true = y_true[negatives_indices]
-    #negatives_pred = y_pred[negatives_indices]
-
-    # define conf indices excluding background
-    #print('negatives_true: {}'.format(negatives_true.shape))
-    #print('negatives_pred: {}'.format(negatives_pred.shape))
-    #neg_conf_loss = _softmax_loss(negatives_true[:, conf_start_idx:conf_end_idx],
-    #                                   negatives_pred[:, conf_start_idx:conf_end_idx])
-
-    #(batch_size, num_boxes)
-    y_true_pb_gtb_matching_not = y_true[:, :, -8] == 0
-    conf_neg_loss = y_true_pb_gtb_matching_not * full_conf_loss
-
-    # (total_num_neg,)
-    #max_confs = np.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
-    max_confs = conf_neg_loss
-    top_indices = np.argpartition(max_confs, -num_neg)#[:, -num_neg:]  # top num_neg elements (not ordered)
-    top_indices = top_indices[:, -num_neg:]  # top num_neg elements (not ordered)
-    # max_confs = K.max(negatives_pred[:, conf_start_idx:conf_end_idx], axis=-1)
-    # _, top_indices = tf.nn.top_k(max_confs, k=K.cast(num_neg, 'int32'))
-
-    # get top negatives
-    # (num_neg, 4+num_classes+8)
-    #negatives_true = negatives_true[top_indices]
-    #negatives_pred = negatives_pred[top_indices]
-    negatives_true = y_true[top_indices]
-    negatives_pred = y_pred[top_indices]
-
-    # (num_neg,)
-    # calc loss only for background class
-    #conf_neg_loss = _softmax_loss(negatives_true[:, 4], negatives_pred[:, 4])
-
-    conf_neg_loss = full_conf_loss
-
-
-    # scalar
-    return np.sum(conf_neg_loss)
 
 def _classes_indices(num_classes):
     # define conf indices including background
