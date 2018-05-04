@@ -36,10 +36,11 @@ class PascalVoc2012(object):
                     one_hot_class = self._to_one_hot(obj_name)
                     one_hot_classes.append(one_hot_class)
             file_name = root.find('filename').text
-            bnd_boxes = np.asarray(bnd_boxes)
-            one_hot_classes = np.asarray(one_hot_classes)
-            image_data = np.hstack((bnd_boxes, one_hot_classes))
-            data[file_name] = image_data
+            if len(bnd_boxes) > 0:
+                bnd_boxes = np.asarray(bnd_boxes)
+                one_hot_classes = np.asarray(one_hot_classes)
+                image_data = np.hstack((bnd_boxes, one_hot_classes))
+                data[file_name] = image_data
         return data
 
     CLASSES = [
@@ -52,13 +53,14 @@ class PascalVoc2012(object):
         return name in self.CLASSES
 
     def _to_one_hot(self, name):
-        nb_classes = len(self.CLASSES)
+        nb_classes = len(self.CLASSES)# + 1 #for background
         one_hot_vector = [0] * nb_classes
         # method index throws error if there is no such item
-        ind = self.CLASSES.index(name)
+        ind = self.CLASSES.index(name)# + 1 #for background
         one_hot_vector[ind] = 1
         return one_hot_vector
 
+# python data.py '../datasets/voc2012/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012.p'
 if __name__ == '__main__':
     import argparse
     import pickle
