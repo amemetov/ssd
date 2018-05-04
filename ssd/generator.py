@@ -3,8 +3,8 @@ import numpy as np
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 
-from bbox_codec import BBoxCodec
-import imaging
+from .bbox_codec import BBoxCodec
+from . import imaging
 
 
 class Generator(object):

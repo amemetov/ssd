@@ -1,8 +1,8 @@
 import math
 import numpy as np
 
-import bbox_codec
-import imaging
+from . import bbox_codec
+from . import imaging
 
 class DataAugmenter(object):
     def __init__(self, target_img_size, scale_range=(0.3, 1.0),

@@ -3,7 +3,7 @@ from keras.engine.topology import InputSpec
 from keras.engine.topology import Layer
 from keras.initializers import Constant
 
-from prior_box import doCreatePriorBoxes
+from .prior_box import doCreatePriorBoxes
 
 
 

@@ -1,6 +1,6 @@
 import numpy as np
-import imaging
-from bbox_codec import  intersectionOverUnion
+from . import imaging
+from .bbox_codec import  intersectionOverUnion
 
 class Detection(object):
 
