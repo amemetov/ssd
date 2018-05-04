@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 import time
 
-import prior_box as pb
-from bbox_codec import intersectionOverUnion, BBoxCodec
+import ssd.prior_box as pb
+from ssd.bbox_codec import intersectionOverUnion, BBoxCodec
 
 class BBoxCodecTest(unittest.TestCase):
     def test_iou(self):

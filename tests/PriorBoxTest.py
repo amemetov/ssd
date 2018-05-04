@@ -3,7 +3,7 @@ import time
 import pickle
 import numpy as np
 
-import prior_box as pb
+import ssd.prior_box as pb
 
 config = [
     {'layer_width': 38, 'layer_height': 38, 'num_prior': 3,

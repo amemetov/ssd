@@ -5,8 +5,8 @@ import time
 import keras.backend as K
 import tensorflow as tf
 
-from keras_impl.losses import SsdLoss
-import np_losses
+from ssd.losses import SsdLoss
+import ssd.np_losses as np_losses
 
 class LossTest(unittest.TestCase):
     def test_loss(self):

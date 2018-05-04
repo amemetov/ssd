@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-from data import PascalVoc2012
+from .data import PascalVoc2012
 
 def draw_boxes(img, prior_boxes, log=False):
     if log:
