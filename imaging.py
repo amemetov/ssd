@@ -18,8 +18,7 @@ def normalize_img(img):
     # img = img / 255.0
     return img
 
-def load_img_for_detection(img_path, target_img_size):
-    img = load_img(img_path)
+def preprocess_img(img, target_img_size):
     img = resize_img(img, target_img_size)
     img = normalize_img(img)
     return img
