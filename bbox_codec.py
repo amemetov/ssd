@@ -39,9 +39,9 @@ class BBoxCodec(object):
                 y_orig[:, 4:4+num_classes] - ground truth one-hot-encoding classes
 
         # Return
-            y_result: 2D tensor of shape (num_priors, 4 + result_num_classes + 4 + 4),
+            y_result: 2D tensor of shape (num_priors, 4 + num_classes + 4 + 4),
                 y_result[:, 0:4] - encoded GTB loc (xmin, ymin, xmax, ymax)
-                y_result[:, 4:4+result_num_classes] - ground truth one-hot-encoding classes with background
+                y_result[:, 4:4+num_classes] - ground truth one-hot-encoding classes with background
                 y_result[:, -8] - {0, 1} is the indicator for matching the current PriorBox to the GTB,
                 not all row has GTB, often it is the background
                 y_result[:, -7:] - 0 - is necessary only to have shape as y_pred's shape
@@ -62,6 +62,42 @@ class BBoxCodec(object):
             self.__encode_iter(y_orig, y_result)
 
         return y_result
+
+    def decode(self, y_pred):
+        """ Convert Y predicted into bboxes.
+
+        # Arguments
+            y_pred: 2D tensor of shape (num_priors, 4 + num_classes + 4 + 4),
+                y_pred[:, 0:4] - predicted encoded loc - see encode method
+                y_pred[:, 4:4+num_classes] - predicted one-hot-encoding classes with background
+                y_pred[:, -8:-4] - PriorBox loc
+                y_pred[:, -4:] - PriorBox variances
+        # Return
+            bboxes: 2D tensor of shape (num_priors, 4),
+                bboxes[:, 0:4] - (xmin, ymin, xmax, ymax)
+        """
+        num_priors = y_pred.shape[0]
+
+        # init bboxes by zeros
+        bboxes  = np.zeros((num_priors, 4))
+
+        encoded_loc = y_pred[:, 0:4]
+        prior_boxes = y_pred[:, -8:-4]
+        # we don't encode variances, so don't use them for decoding
+        #variances = y_pred[:, -4:]
+
+        pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
+        pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
+
+        # decode bbox center and size - see encode method
+        box_center = encoded_loc[:, :2] * pb_wh + pb_center
+        box_wh = np.exp(encoded_loc[:, 2:4]) * pb_center
+
+        # decode bbox loc from box center and size
+        bboxes[:, :2] = box_center - 0.5 * box_wh
+        bboxes[:, 2:4] = box_center + 0.5 * box_wh
+
+        return bboxes
 
     def __encode_vect(self, y_orig, y_result):
         # max_iou - 2D tensor (num_gtb, 2) where
