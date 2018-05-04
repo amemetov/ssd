@@ -23,11 +23,13 @@ def intersectionOverUnion(gtb, pb):
     return iou
 
 class BBoxCodec(object):
-    def __init__(self, prior_boxes, num_classes, iou_threshold=0.5, use_vect=True):
+    def __init__(self, prior_boxes, num_classes, iou_threshold=0.5,
+                 encode_variances=True, use_vect=True):
         self.prior_boxes = prior_boxes
         self.num_priors = len(prior_boxes)
         self.num_classes = num_classes
         self.iou_threshold = iou_threshold
+        self.encode_variances = encode_variances
         self.use_vect = use_vect
 
     def encode(self, y_orig):
@@ -83,15 +85,19 @@ class BBoxCodec(object):
 
         encoded_loc = y_pred[:, 0:4]
         prior_boxes = y_pred[:, -8:-4]
-        # we don't encode variances, so don't use them for decoding
-        #variances = y_pred[:, -4:]
+        # if use encode variance
+        variances = y_pred[:, -4:]
 
         pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
         pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
 
         # decode bbox center and size - see encode method
-        box_center = encoded_loc[:, :2] * pb_wh + pb_center
-        box_wh = np.exp(encoded_loc[:, 2:4]) * pb_center
+        if self.encode_variances:
+            box_center = encoded_loc[:, :2] * pb_wh * variances[:, :2] + pb_center
+            box_wh = np.exp(encoded_loc[:, 2:4] * variances[:, 2:4]) * pb_center
+        else:
+            box_center = encoded_loc[:, :2] * pb_wh + pb_center
+            box_wh = np.exp(encoded_loc[:, 2:4]) * pb_center
 
         # decode bbox loc from box center and size
         bboxes[:, :2] = box_center - 0.5 * box_wh
@@ -120,10 +126,11 @@ class BBoxCodec(object):
         y_result[pb_indices, :2] = (box_center - pb_center) / pb_wh
         y_result[pb_indices, 2:4] = np.log(box_wh / pb_wh)
 
-        # encode variance of cx, cy
-        #y_result[pb_indices, :2] /= prior_boxes[:, -4:-2]
-        # encode variance of w, h
-        #y_result[pb_indices, 2:4] /= prior_boxes[:, -2:]
+        if self.encode_variances:
+            # encode variance of cx, cy
+            y_result[pb_indices, :2] /= prior_boxes[:, -4:-2]
+            # encode variance of w, h
+            y_result[pb_indices, 2:4] /= prior_boxes[:, -2:]
 
         # probability of the background_class is 0
         y_result[pb_indices, 4] = 0.0
