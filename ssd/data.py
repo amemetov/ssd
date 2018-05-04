@@ -60,7 +60,7 @@ class PascalVoc2012(object):
         one_hot_vector[ind] = 1
         return one_hot_vector
 
-# python data.py '../datasets/voc2012/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012-with-background.p'
+# python data.py '../datasets/voc2012/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012.p'
 if __name__ == '__main__':
     import argparse
     import pickle
