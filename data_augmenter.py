@@ -1,14 +1,13 @@
 import math
 import numpy as np
-from scipy.misc.pilutil import imresize
-import bbox_codec
 
+import bbox_codec
 import imaging
 
 class DataAugmenter(object):
-    def __init__(self, target_image_size, scale_range=(0.3, 1.0),
+    def __init__(self, target_img_size, scale_range=(0.3, 1.0),
                  aspect_ratio_range=(0.5, 2.0), jaccard_overlap_range=(0.0, 1.0)):
-        self.target_image_size = target_image_size
+        self.target_img_size = target_img_size
         self.scale_range = scale_range
         self.aspect_ratio_range = aspect_ratio_range
         self.jaccard_overlap_range = jaccard_overlap_range
@@ -22,7 +21,7 @@ class DataAugmenter(object):
             img, y = self.__randomly_sample_patch(img, y)
 
         # 2. Resize to fixed size
-        img = imresize(img, self.target_image_size).astype('float32')
+        img = imaging.resize_img(img, self.target_img_size)
 
         if do_augment:
             # 3. Horizontally flip

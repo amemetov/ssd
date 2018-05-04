@@ -14,12 +14,11 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir, data_augmenter, bbox_codec, image_size=(300, 300)):
+    def __init__(self, gtb, img_dir, data_augmenter, bbox_codec):
         self.gtb = gtb
         self.img_dir = img_dir
         self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
-        self.image_size = image_size
 
     def flow(self, img_file_names, do_augment=True, batch_size=32):
         num_samples = len(img_file_names)
@@ -43,7 +42,7 @@ class Generator(object):
                     img, y = self.data_augmenter.augment(img, y, do_augment)
 
                     # normalize
-                    img = img / 127.5 - 1.0
+                    img = imaging.normalize_img(img)
 
                     # Convert origin GTBs to format expected by NN
                     y_encoded = self.bbox_codec.encode(y)

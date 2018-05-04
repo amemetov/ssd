@@ -1,10 +1,29 @@
 import numpy as np
 import cv2
-from scipy.misc.pilutil import imread
+from scipy.misc.pilutil import imread, imresize
 
 def load_img(path):
     # loads image as uint8
     return imread(path)
+
+def resize_img(img, target_img_size):
+    return imresize(img, target_img_size).astype('float32')
+
+def normalize_img(img):
+    #if issubclass(img.dtype.type, np.int):
+    #    img = img / 255.0
+
+    # normalize
+    img = img / 127.5 - 1.0
+    # img = img / 255.0
+    return img
+
+def load_img_for_detection(img_path, target_img_size):
+    img = load_img(img_path)
+    img = resize_img(img, target_img_size)
+    img = normalize_img(img)
+    return img
+
 
 def flip_horiz(img):
     return np.fliplr(img)
