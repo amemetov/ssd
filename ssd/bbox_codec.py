@@ -87,25 +87,25 @@ class BBoxCodec(object):
         # init bboxes by zeros
         bboxes  = np.zeros((num_priors, 4))
 
+        # (cx, cy, w, h)
         encoded_loc = y_pred[:, 0:4]
-        prior_boxes = y_pred[:, -8:-4]
-        # if use encode variance
-        variances = y_pred[:, -4:]
+        pb_loc = y_pred[:, -8:-4]
+        pb_variances = y_pred[:, -4:]
 
-        pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
-        pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
+        pb_center = 0.5 * (pb_loc[:, :2] + pb_loc[:, 2:4])
+        pb_wh = pb_loc[:, 2:4] - pb_loc[:, :2]
 
         # decode bbox center and size - see encode method
         if self.encode_variances:
-            box_center = encoded_loc[:, :2] * pb_wh * variances[:, :2] + pb_center
-            box_wh = np.exp(encoded_loc[:, 2:4] * variances[:, 2:4]) * pb_center
+            decode_box_center = encoded_loc[:, :2] * pb_wh * pb_variances[:, :2] + pb_center
+            decode_box_wh = np.exp(encoded_loc[:, 2:4] * pb_variances[:, 2:4]) * pb_wh
         else:
-            box_center = encoded_loc[:, :2] * pb_wh + pb_center
-            box_wh = np.exp(encoded_loc[:, 2:4]) * pb_center
+            decode_box_center = encoded_loc[:, :2] * pb_wh + pb_center
+            decode_box_wh = np.exp(encoded_loc[:, 2:4]) * pb_wh
 
         # decode bbox loc from box center and size
-        bboxes[:, :2] = box_center - 0.5 * box_wh
-        bboxes[:, 2:4] = box_center + 0.5 * box_wh
+        bboxes[:, :2] = decode_box_center - 0.5 * decode_box_wh
+        bboxes[:, 2:4] = decode_box_center + 0.5 * decode_box_wh
 
         bboxes = np.clip(bboxes, 0, 1)
 
@@ -133,21 +133,22 @@ class BBoxCodec(object):
         assert len(gtb_indices) == len(pb_indices)
 
         gt_boxes = y_orig[gtb_indices]
-        box_center = 0.5 * (gt_boxes[:, :2] + gt_boxes[:, 2:4])
-        box_wh = gt_boxes[:, 2:4] - gt_boxes[:, :2]
+        gtb_center = 0.5 * (gt_boxes[:, :2] + gt_boxes[:, 2:4])
+        gtb_wh = gt_boxes[:, 2:4] - gt_boxes[:, :2]
 
         prior_boxes = self.prior_boxes[pb_indices]
         pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
         pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
+        pb_variances = prior_boxes[:, -4:]
 
-        # encode offsets (cx, cy, w, h)
+        # encode offsets (cx, cy, w, h) relative to the PriorBox coordinates
         # see loss computing in the origin SSD paper
-        y_result[pb_indices, :2] = (box_center - pb_center) / pb_wh
-        y_result[pb_indices, 2:4] = np.log(box_wh / pb_wh)
+        y_result[pb_indices, :2] = (gtb_center - pb_center) / pb_wh
+        y_result[pb_indices, 2:4] = np.log(gtb_wh / pb_wh)
 
         if self.encode_variances:
             # encode variance of cx, cy, w, h
-            y_result[pb_indices, :4] /= prior_boxes[:, -4:]
+            y_result[pb_indices, :4] /= pb_variances
 
         # probability of the background_class is 0
         y_result[pb_indices, 4] = 0.0
