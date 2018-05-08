@@ -48,7 +48,13 @@ class BBoxCodec(object):
                 not all row has GTB, often it is the background
                 y_result[:, -7:] - 0 - is necessary only to have shape as y_pred's shape
         """
-        num_gtb = y_orig.shape[0]
+
+        # filter out empty boxes
+        gt_boxes = y_orig
+        gtb_w = gt_boxes[:, 2] - gt_boxes[:, 0]
+        gtb_h = gt_boxes[:, 3] - gt_boxes[:, 1]
+        gtb_area = gtb_w * gtb_h
+        y_orig = y_orig[gtb_area > 0]
 
         # init y_result by zeros
         y_result = np.zeros((self.num_priors, 4 + self.num_classes + 8))
@@ -58,6 +64,7 @@ class BBoxCodec(object):
         # explicitly set that by default no matches between PBs and GTBs
         y_result[:, -8] = 0
 
+        num_gtb = y_orig.shape[0]
         if num_gtb == 0:
             return y_result
 
