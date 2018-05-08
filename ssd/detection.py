@@ -96,6 +96,8 @@ class Detection(object):
         if len(top_k_indices) > self.out_nms_top_k:
             # take last out_nms_top_k indices cause top_k_indices is ascent ordered
             top_k_indices = top_k_indices[-self.out_nms_top_k:]
+            # reverse top_k_indices to handle firstly bboxes with larger confs
+            top_k_indices = top_k_indices[::-1]
 
         top_k_bboxes = bboxes[top_k_indices]
         top_k_confs = confs[top_k_indices]
