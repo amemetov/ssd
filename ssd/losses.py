@@ -17,7 +17,7 @@ class SsdLoss(object):
             y_true: Ground Truth Boxes (GTB)
             tensor of shape (batch_size, num_boxes, 4 + num_classes + 4 + 4),
 
-            y_true[:, :, 0:4] - encoded GTB loc (xmin, ymin, xmax, ymax)
+            y_true[:, :, 0:4] - encoded GTB offsets in bbox locations (cx, cy, w, h) - see BBoxCodec.encode.
             y_true[:, :, 4:4+num_classes] - ground truth one-hot-encoding classes
             y_true[:, :, -8] - {0, 1} is the indicator for matching the current PriorBox to the GTB,
             not all row has GTB, often it is the background
@@ -26,10 +26,10 @@ class SsdLoss(object):
             y_pred: Predicted Boxes
             tensor of shape (batch_size, num_boxes, 4 + num_classes + 4 + 4),
             where
-            y_pred[:, :, 0:4] - predicted box loc (xmin, ymin, xmax, ymax)
+            y_pred[:, :, 0:4] - predicted offsets in bbox locations (cx, cy, w, h) - see BBoxCodec.encode.
             y_pred[:, :, 4:4+num_classes] - one-hot-encoding predictions for classes
-            y_pred[:, :, -8:-4] - predicted prior box loc (xmin, ymin, xmax, ymax)
-            y_pred[:, :, -4:] - predicted prior box variances
+            y_pred[:, :, -8:-4] - PriorBox loc (xmin, ymin, xmax, ymax) - is used to decode predicted offsets
+            y_pred[:, :, -4:] - PriorBox variances - may be used to decode predicted offsets
 
         # References
         - [SSD: Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325)
