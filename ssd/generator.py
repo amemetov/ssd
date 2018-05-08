@@ -38,6 +38,10 @@ class Generator(object):
                     # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
 
+                    # skip samples which have no GTB
+                    if y.shape[0] == 0:
+                        continue
+
                     # Do data augmentation
                     img, y = self.data_augmenter.augment(img, y, do_augment)
 
