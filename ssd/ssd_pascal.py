@@ -58,7 +58,7 @@ layers_config = [
 
 prior_variance = [0.1, 0.1, 0.2, 0.2]
 
-def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
+def SSD300(base_net_name='vgg16', base_net_weights='imagenet', freeze_layers=None, use_bn=False, use_dropout=False):
     if base_net_name not in {'vgg16', None}:
         raise ValueError('The `base_net_name` argument should be either '
                          '`vgg16` or (other nets will be added in the future).')
@@ -71,9 +71,9 @@ def SSD300(base_net_name='vgg16', freeze_layers=None, use_bn=False):
     ssd_net['image_input'] = Input(shape=input_dim, name='image_input')
 
     base_net_model = VGG16(ssd_net, ssd_net['image_input'], input_shape=input_dim,
-                           include_top=False, weights='imagenet')
+                           include_top=False, weights=base_net_weights)
 
-    addExtraLayers(ssd_net, base_net_model, use_bn=use_bn)
+    addExtraLayers(ssd_net, base_net_model, use_bn=use_bn, use_dropout=use_dropout)
 
     num_classes = 21
 
