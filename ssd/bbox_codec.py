@@ -37,12 +37,12 @@ class BBoxCodec(object):
 
         # Arguments
             y_orig: 2D tensor of shape (num_gtb, 4 + num_classes), num_classes without background.
-                y_orig[:, 0:4] - encoded GTB loc (xmin, ymin, xmax, ymax)
+                y_orig[:, 0:4] - GTB loc (xmin, ymin, xmax, ymax) normalized by corresponding image size
                 y_orig[:, 4:4+num_classes] - ground truth one-hot-encoding classes
 
         # Return
             y_result: 2D tensor of shape (num_priors, 4 + num_classes + 4 + 4),
-                y_result[:, 0:4] - encoded GTB loc (xmin, ymin, xmax, ymax)
+                y_result[:, 0:4] - encoded GTB offsets in bbox locations (cx, cy, w, h)
                 y_result[:, 4:4+num_classes] - ground truth one-hot-encoding classes with background
                 y_result[:, -8] - {0, 1} is the indicator for matching the current PriorBox to the GTB,
                 not all row has GTB, often it is the background
@@ -55,11 +55,15 @@ class BBoxCodec(object):
 
         # by default assume that all boxes are background - set probability of background = 1
         y_result[:, 4] = 1.0
+        # explicitly set that by default no matches between PBs and GTBs
+        y_result[:, -8] = 0
+
         if num_gtb == 0:
             return y_result
 
         if self.use_vect:
             self.__encode_vect(y_orig, y_result)
+            #self.__encode_vect_v1(y_orig, y_result)
         else:
             self.__encode_iter(y_orig, y_result)
 
@@ -70,7 +74,7 @@ class BBoxCodec(object):
 
         # Arguments
             y_pred: 2D tensor of shape (num_priors, 4 + num_classes + 4 + 4),
-                y_pred[:, 0:4] - predicted encoded loc - see encode method
+                y_pred[:, 0:4] - predicted offsets in bbox locations (cx, cy, w, h) - see encode method
                 y_pred[:, 4:4+num_classes] - predicted one-hot-encoding classes with background
                 y_pred[:, -8:-4] - PriorBox loc
                 y_pred[:, -4:] - PriorBox variances
@@ -108,6 +112,53 @@ class BBoxCodec(object):
         return bboxes
 
     def __encode_vect(self, y_orig, y_result):
+        # 2D tensor, rows are  pbs(y_result)'s indices, columns gtb(y_orig)'s indices
+        iou = self.__iou_full(y_orig)
+
+        # The origin implementation encodes in 2 steps:
+        # 1. Bipartite matching.
+        # 2. Get most overlapped for the rest prediction bboxes for MatchType_PER_PREDICTION.
+        # we do it in one step
+
+        # 1D tensor which contains for each PriorBox indices of most overlapped GTB
+        max_gtb_indices = np.argmax(iou, axis=1)
+        max_iou = iou[np.arange(iou.shape[0]), max_gtb_indices]
+        threshold_mask = max_iou > self.iou_threshold
+        pb_indices = np.arange(iou.shape[0])[threshold_mask]
+        gtb_indices = max_gtb_indices[threshold_mask]
+
+        self.__assign_boxes(y_orig, y_result, gtb_indices, pb_indices)
+
+    def __assign_boxes(self, y_orig, y_result, gtb_indices, pb_indices):
+        assert len(gtb_indices) == len(pb_indices)
+
+        gt_boxes = y_orig[gtb_indices]
+        box_center = 0.5 * (gt_boxes[:, :2] + gt_boxes[:, 2:4])
+        box_wh = gt_boxes[:, 2:4] - gt_boxes[:, :2]
+
+        prior_boxes = self.prior_boxes[pb_indices]
+        pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
+        pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
+
+        # encode offsets (cx, cy, w, h)
+        # see loss computing in the origin SSD paper
+        y_result[pb_indices, :2] = (box_center - pb_center) / pb_wh
+        y_result[pb_indices, 2:4] = np.log(box_wh / pb_wh)
+
+        if self.encode_variances:
+            # encode variance of cx, cy, w, h
+            y_result[pb_indices, :4] /= prior_boxes[:, -4:]
+
+        # probability of the background_class is 0
+        y_result[pb_indices, 4] = 0.0
+
+        # copy probabilities of categories
+        y_result[pb_indices, 5:-8] = gt_boxes[:, 4:]
+
+        # set indicator to point that this PBs matched to GTBs - is used by SsdLoss
+        y_result[pb_indices, -8] = 1
+
+    def __encode_vect_v1(self, y_orig, y_result):
         # max_iou - 2D tensor (num_gtb, 2) where
         # max_iou[:, 0] - idx of PB, max_iou[:, 1] - iou value itself
         max_iou = np.apply_along_axis(self.__find_most_overlapped_pb_vect, 1, y_orig)
@@ -157,10 +208,11 @@ class BBoxCodec(object):
                 y_result[pb_idx][:2] = (box_center - pb_center) / pb_wh
                 y_result[pb_idx][2:4] = np.log(box_wh / pb_wh)
 
-                # encode variance of cx, cy
-                #y_result[pb_idx][:2] /= pb[-4:-2]
-                # encode variance of w, h
-                #y_result[pb_idx][2:4] /= pb[-2:]
+                if self.encode_variances:
+                    # encode variance of cx, cy
+                    y_result[pb_idx][:2] /= pb[-4:-2]
+                    # encode variance of w, h
+                    y_result[pb_idx][2:4] /= pb[-2:]
 
                 # probability of the background_class is 0
                 y_result[pb_idx][4] = 0.0
@@ -176,6 +228,29 @@ class BBoxCodec(object):
         iou = self.__iou_vect(gtb)
         max_idx = np.argmax(iou)
         return max_idx, iou[max_idx]
+
+    def __iou_full(self, gtbs):
+        # add new axis for prior_boxes to manage broadcasting
+        pbs = self.prior_boxes[:, np.newaxis]
+
+        # find left-top and right-bottom of intersection
+        left = np.maximum(gtbs[:, 0], pbs[:, :, 0])
+        top = np.maximum(gtbs[:, 1], pbs[:, :, 1])
+        right = np.minimum(gtbs[:, 2], pbs[:, :, 2])
+        bottom = np.minimum(gtbs[:, 3], pbs[:, :, 3])
+
+        # area of intersection
+        inter_area = (right - left) * (bottom - top)
+
+        gtb_area = (gtbs[:, 2] - gtbs[:, 0]) * (gtbs[:, 3] - gtbs[:, 1])
+        # TODO: move calculating pb_area to __init and reuse it
+        pb_area = (pbs[:, :, 2] - pbs[:, :, 0]) * (pbs[:, :, 3] - pbs[:, :, 1])
+
+        union_area = gtb_area + pb_area - inter_area
+
+        # 2D tensor, rows are  pbs(y_result)'s indices, columns gtb(y_orig)'s indices
+        iou = np.divide(inter_area, union_area, out=np.zeros_like(union_area), where=union_area != 0)
+        return iou
 
     def __iou_vect(self, gtb):
         # find left-top and right-bottom of intersection
