@@ -51,6 +51,10 @@ class Generator(object):
                     # Convert origin GTBs to format expected by NN
                     y_encoded = self.bbox_codec.encode(y)
 
+                    # skip samples which have no matched PB <-> GTB
+                    if np.sum(y_encoded[:, -8]) == 0:
+                        continue
+
                     x_batch.append(img)
                     y_batch.append(y_encoded)
 
