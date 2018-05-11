@@ -47,13 +47,13 @@ class LossTest(unittest.TestCase):
         ])
 
 
-        expected_loss = np_losses.loss(y_true, y_pred, num_classes)
-        actual_loss = loss_keras(y_true, y_pred, num_classes)
+        numpy_loss = np_losses.loss(y_true, y_pred, num_classes)
+        keras_loss = loss_keras(y_true, y_pred, num_classes)
 
-        print('numpy_loss: {}'.format(expected_loss))
-        print('keras_loss: {}'.format(actual_loss))
+        print('numpy_loss: {}'.format(numpy_loss))
+        print('keras_loss: {}'.format(keras_loss))
 
-        self.assertAlmostEqual(expected_loss, actual_loss, delta=0.000001)
+        self.assertTrue(np.allclose(numpy_loss, keras_loss))
 
 
 def loss_keras(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):

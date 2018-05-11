@@ -17,13 +17,16 @@ def loss(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):
     loc_loss = _loc_loss(y_true, y_pred, y_true_pb_gtb_matching)
     conf_loss = _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes, num_classes, hard_neg_pos_ratio)
 
-    total_num_pos = np.sum(num_pos)
+    # total_num_pos = np.sum(num_pos)
+    #
+    # if total_num_pos == 0:
+    #     return 0
+    #
+    # total_loss = (conf_loss + loc_alpha * loc_loss) / total_num_pos
+    # return total_loss
 
-    if total_num_pos == 0:
-        return 0
-
-    total_loss = (conf_loss + loc_alpha * loc_loss) / total_num_pos
-    return total_loss
+    result_loss = (conf_loss + loc_alpha * loc_loss) / num_pos
+    return result_loss
 
 def _loc_loss(y_true, y_pred, y_true_pb_gtb_matching):
     # extract loc classes and data
@@ -37,7 +40,8 @@ def _loc_loss(y_true, y_pred, y_true_pb_gtb_matching):
     loc_pos_loss = np.sum(y_true_pb_gtb_matching * loc_loss, axis=1)
 
     # scalar - sum for all images in batch
-    return np.sum(loc_pos_loss)
+    #return np.sum(loc_pos_loss)
+    return loc_pos_loss
 
 def _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes, num_classes, hard_neg_pos_ratio):
     conf_start_idx, conf_end_idx = _classes_indices(num_classes)
@@ -55,7 +59,8 @@ def _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes, num_c
     print('conf_pos_loss: {}'.format(conf_pos_loss))
     print('conf_neg_loss: {}'.format(conf_neg_loss))
 
-    return np.sum(conf_pos_loss + conf_neg_loss)
+    #return np.sum(conf_pos_loss + conf_neg_loss)
+    return conf_pos_loss + conf_neg_loss
 
 def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
                         num_pos, num_boxes, hard_neg_pos_ratio):
