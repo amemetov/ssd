@@ -32,9 +32,11 @@ class PascalVoc2012(object):
                     xmax = float(bb_tree.find('xmax').text) / width
                     ymax = float(bb_tree.find('ymax').text) / height
 
-                    bnd_boxes.append([xmin, ymin, xmax, ymax])
-                    one_hot_class = self._to_one_hot(obj_name)
-                    one_hot_classes.append(one_hot_class)
+                    if xmax - xmin > 0 and ymax - ymin > 0:
+                        bnd_boxes.append([xmin, ymin, xmax, ymax])
+                        one_hot_class = self._to_one_hot(obj_name)
+                        one_hot_classes.append(one_hot_class)
+
             file_name = root.find('filename').text
             if len(bnd_boxes) > 0:
                 bnd_boxes = np.asarray(bnd_boxes)
