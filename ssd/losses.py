@@ -1,7 +1,6 @@
 import keras.backend as K
 from keras import losses
 import tensorflow as tf
-import numpy as np
 
 class SsdLoss(object):
     def __init__(self, num_classes, hard_neg_pos_ratio=3):
@@ -46,16 +45,13 @@ class SsdLoss(object):
         # containing # of matching boxes for each image (in the batch)
         num_pos = K.cast(K.sum(y_true_pb_gtb_matching, axis=1), dtype='int32')
 
+        # tensors of the shape (batch_size)
         loc_loss = self._calc_loc_loss(y_true, y_pred, y_true_pb_gtb_matching)
         conf_loss = self._calc_conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes)
 
-        total_num_pos = K.sum(num_pos)
-
-        def total_loss():
-            total_loss = (conf_loss + self.loc_alpha * loc_loss) / K.cast(total_num_pos, dtype='float32')
-            return total_loss
-
-        return tf.cond(tf.equal(total_num_pos, 0), lambda : 0.0, total_loss)
+        loss = (conf_loss + self.loc_alpha * loc_loss) / K.cast(num_pos, dtype='float32')
+        result_loss = tf.where(tf.equal(num_pos, 0), tf.zeros_like(loss), loss)
+        return result_loss# * tf.to_float(batch_size)
 
     def _calc_loc_loss(self, y_true, y_pred, y_true_pb_gtb_matching):
         # extract loc classes and data
@@ -68,7 +64,7 @@ class SsdLoss(object):
         # tensor of the shape (batch_size)
         # containing loc pos loss for each image (in the batch)
         loc_pos_loss = K.sum(y_true_pb_gtb_matching * loc_loss, axis=1)
-        return K.sum(loc_pos_loss)
+        return loc_pos_loss
 
     def _calc_conf_loss(self, y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes):
         conf_start_idx, conf_end_idx = self._classes_indices()
@@ -83,7 +79,7 @@ class SsdLoss(object):
         conf_pos_loss = K.sum(pos_indices * full_conf_loss, axis=1)
         conf_neg_loss = K.sum(neg_indices * full_conf_loss, axis=1)
 
-        return K.sum(conf_pos_loss + conf_neg_loss)
+        return conf_pos_loss + conf_neg_loss
 
     def _mine_hard_examples(self, full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes):
         # hard negative mining
@@ -128,14 +124,15 @@ class SsdLoss(object):
         abs_loss = K.abs(y_true - y_pred)
         sq_loss = 0.5 * (y_true - y_pred) ** 2
         otherwise_loss = abs_loss - 0.5
-        #TODO: implement without explicit TF
         l1_loss = tf.where(K.less(abs_loss, 1.0), sq_loss, otherwise_loss)
         return K.sum(l1_loss, -1)
 
     def _softmax_loss(self, y_true, y_pred):
         #return losses.categorical_crossentropy(y_true, y_pred)
+
         # prevent division by zero
-        y_pred = K.maximum(y_pred, 1e-15)
+        eps = 1e-15
+        y_pred = K.clip(y_pred, eps, 1. - eps)
         log_loss = -K.sum(y_true * K.log(y_pred), axis=-1)
         return log_loss
 
