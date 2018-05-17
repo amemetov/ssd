@@ -123,10 +123,23 @@ class BBoxCodec(object):
         iou = self.__iou_full(y_orig)
 
         # The origin implementation encodes in 2 steps:
-        # 1. Bipartite matching.
-        # 2. Get most overlapped for the rest prediction bboxes for MatchType_PER_PREDICTION.
-        # we do it in one step
 
+        # 1. Bipartite matching.
+        self.__match_bipartiate(y_orig, y_result, iou)
+
+        # 2. Get most overlapped for the rest prediction bboxes for MatchType_PER_PREDICTION.
+        self.__match_per_prediction(y_orig, y_result, iou)
+
+    def __match_bipartiate(self, y_orig, y_result, iou):
+        # 1D tensor containing for each GTB indices of most overlapped PBs
+        max_pb_indices = np.argmax(iou, axis=0)
+        max_gtb_indices = np.arange(iou.shape[1])
+        self.__assign_boxes(y_orig, y_result, max_gtb_indices, max_pb_indices)
+
+        # reset IOUs for assigned PBs to not to use them on the step2
+        iou[max_pb_indices, :] = 0
+
+    def __match_per_prediction(self, y_orig, y_result, iou):
         # 1D tensor which contains for each PriorBox indices of most overlapped GTB
         max_gtb_indices = np.argmax(iou, axis=1)
         max_iou = iou[np.arange(iou.shape[0]), max_gtb_indices]
