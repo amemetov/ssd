@@ -7,28 +7,19 @@ def loss(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):
     num_boxes = np.shape(y_true)[1]
 
     # (batch_size, num_boxes)
-    y_true_pb_gtb_matching = y_true[:, :, -8]
+    y_matching_mask = y_true[:, :, -8]
 
     # tensor of the shape (batch_size)
     # containing # of matching boxes for each image (in the batch)
-    num_pos = np.sum(y_true_pb_gtb_matching, axis=1).astype(np.int)
+    num_pos = np.sum(y_matching_mask, axis=1).astype(np.int)
     print('num_pos: {}'.format(num_pos))
 
-    loc_loss = _loc_loss(y_true, y_pred, y_true_pb_gtb_matching)
-    conf_loss = _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes, num_classes, hard_neg_pos_ratio)
+    loc_loss = _loc_loss(y_true, y_pred, y_matching_mask, num_pos)
+    conf_loss = _conf_loss(y_true, y_pred, y_matching_mask, num_pos, num_boxes, num_classes, hard_neg_pos_ratio)
 
-    # total_num_pos = np.sum(num_pos)
-    #
-    # if total_num_pos == 0:
-    #     return 0
-    #
-    # total_loss = (conf_loss + loc_alpha * loc_loss) / total_num_pos
-    # return total_loss
+    return np.sum(conf_loss + loc_alpha * loc_loss)
 
-    result_loss = (conf_loss + loc_alpha * loc_loss) / num_pos
-    return result_loss
-
-def _loc_loss(y_true, y_pred, y_true_pb_gtb_matching):
+def _loc_loss(y_true, y_pred, y_matching_mask, num_pos):
     # extract loc classes and data
     y_true_loc = y_true[:, :, :4]
     y_pred_loc = y_pred[:, :, :4]
@@ -37,32 +28,39 @@ def _loc_loss(y_true, y_pred, y_true_pb_gtb_matching):
     loc_loss = _smooth_l1_loss(y_true_loc, y_pred_loc)
 
     # (batch_size)
-    loc_pos_loss = np.sum(y_true_pb_gtb_matching * loc_loss, axis=1)
+    loc_pos_loss = np.sum(y_matching_mask * loc_loss, axis=1)
 
-    # scalar - sum for all images in batch
-    #return np.sum(loc_pos_loss)
+    # average
+    loc_pos_loss = loc_pos_loss / num_pos
+
     return loc_pos_loss
 
-def _conf_loss(y_true, y_pred, y_true_pb_gtb_matching, num_pos, num_boxes, num_classes, hard_neg_pos_ratio):
-    conf_start_idx, conf_end_idx = _classes_indices(num_classes)
+def _conf_loss(y_true, y_pred, y_matching_mask, num_pos, num_boxes, num_classes, hard_neg_pos_ratio):
+    # define conf indices including background
+    conf_start_idx, conf_end_idx = 4, 4 + num_classes
 
     # conf loss for all PriorBoxes
     # (batch_size, num_boxes)
     full_conf_loss = _softmax_loss(y_true[:, :, conf_start_idx:conf_end_idx], y_pred[:, :, conf_start_idx:conf_end_idx])
 
-    pos_indices = y_true_pb_gtb_matching
-    neg_indices = _mine_hard_examples(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
+    pos_indices_mask = y_matching_mask
+    neg_indices_mask = _mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask,
                                     num_pos, num_boxes, hard_neg_pos_ratio)
-    conf_pos_loss = np.sum(pos_indices * full_conf_loss, axis=1)
-    conf_neg_loss = np.sum(neg_indices * full_conf_loss, axis=1)
+    conf_pos_loss = np.sum(pos_indices_mask * full_conf_loss, axis=1)
+    conf_neg_loss = np.sum(neg_indices_mask * full_conf_loss, axis=1)
+
+    num_neg = np.sum(neg_indices_mask, axis=1).astype(np.int)
+
+    # average
+    conf_pos_loss = conf_pos_loss / num_pos
+    conf_neg_loss = conf_neg_loss / num_neg
 
     print('conf_pos_loss: {}'.format(conf_pos_loss))
     print('conf_neg_loss: {}'.format(conf_neg_loss))
 
-    #return np.sum(conf_pos_loss + conf_neg_loss)
     return conf_pos_loss + conf_neg_loss
 
-def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
+def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask,
                         num_pos, num_boxes, hard_neg_pos_ratio):
     # hard negative mining
 
@@ -74,7 +72,7 @@ def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_true_pb_gtb_matching,
     print('num_neg: {}'.format(num_neg))
 
     #(batch_size, num_boxes)
-    all_neg_indices = y_true_pb_gtb_matching == 0
+    all_neg_indices = y_matching_mask == 0
     full_conf_neg_loss = full_conf_loss * all_neg_indices
     #print('full_conf_neg_loss: {}'.format(full_conf_neg_loss))
 
