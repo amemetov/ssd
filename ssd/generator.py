@@ -35,6 +35,10 @@ class Generator(object):
                     img_full_path = os.path.join(self.img_dir, img_file_name)
                     img = imaging.load_img(img_full_path).astype(np.float32)
 
+                    if img_file_name not in self.gtb:
+                        #print('File {} is not in gtb'.format(img_file_name))
+                        continue
+
                     # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
 
