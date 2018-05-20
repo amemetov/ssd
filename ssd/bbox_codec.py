@@ -23,12 +23,14 @@ def intersectionOverUnion(gtb, pb):
     return iou
 
 class BBoxCodec(object):
-    def __init__(self, prior_boxes, num_classes, iou_threshold=0.5, encode_variances=True):
+    def __init__(self, prior_boxes, num_classes,
+                 iou_threshold=0.5, encode_variances=True, match_per_prediction=True):
         self.prior_boxes = prior_boxes
         self.num_priors = len(prior_boxes)
         self.num_classes = num_classes
         self.iou_threshold = iou_threshold
         self.encode_variances = encode_variances
+        self.match_per_prediction = match_per_prediction
 
         # add new axis for prior_boxes to manage broadcasting
         self.pb_broadcasted = self.prior_boxes[:, np.newaxis]
@@ -126,7 +128,8 @@ class BBoxCodec(object):
         self.__match_bipartiate(y_orig, y_result, iou)
 
         # 2. Get most overlapped for the rest prediction bboxes for MatchType_PER_PREDICTION.
-        self.__match_per_prediction(y_orig, y_result, iou)
+        if self.match_per_prediction:
+            self.__match_per_prediction(y_orig, y_result, iou)
 
     def __match_bipartiate(self, y_orig, y_result, iou):
         # 1D tensor containing for each GTB indices of most overlapped PBs
