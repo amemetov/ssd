@@ -197,3 +197,33 @@ class BBoxCodec(object):
         # 2D tensor, rows are  pbs(y_result)'s indices, columns gtb(y_orig)'s indices
         iou = np.divide(inter_area, union_area, out=np.zeros_like(union_area), where=union_area != 0)
         return iou
+
+
+class LargestObjClassCodec(object):
+    def encode(self, y_orig):
+        #print('y_orig: {}'.format(y_orig))
+        # encode - take the largest bbox
+        # y_orig [:, 0:4] - GTB loc (xmin, ymin, xmax, ymax) normalized by corresponding image size
+        y_encoded = sorted(y_orig, key=lambda x: (x[2] - x[0]) * (x[3] - x[1]), reverse=True)[0]
+        # keep only one-hot-encoded classes + background at the beginning
+        y_encoded = np.concatenate(([0], y_encoded[4:]))
+
+        return y_encoded
+
+class LargestObjBoxCodec(object):
+    def encode(self, y_orig):
+        # encode - take the largest bbox
+        # y_orig [:, 0:4] - GTB loc (xmin, ymin, xmax, ymax) normalized by corresponding image size
+        y_encoded = sorted(y_orig, key=lambda x: (x[2] - x[0]) * (x[3] - x[1]), reverse=True)[0]
+        # keep only bbox
+        y_encoded = y_encoded[:4]
+
+        return y_encoded
+
+class LargestObjBoxAndClassCodec(object):
+    def encode(self, y_orig):
+        # encode - take the largest bbox
+        # y_orig [:, 0:4] - GTB loc (xmin, ymin, xmax, ymax) normalized by corresponding image size
+        y_encoded = sorted(y_orig, key=lambda x: (x[2] - x[0]) * (x[3] - x[1]), reverse=True)[0]
+
+        return y_encoded
