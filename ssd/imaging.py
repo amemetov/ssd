@@ -49,15 +49,8 @@ def denormalize_img(img, mean=MEAN):
 
 def preprocess_img(img, target_img_size):
     img = resize_img(img, target_img_size)
-
     img = normalize_img(img)
-
-    # img -= MEAN
-    # # 'RGB'->'BGR'
-    # img = img[:, :, ::-1]
-
     return img
-
 
 def flip_horiz(img):
     return np.fliplr(img)
