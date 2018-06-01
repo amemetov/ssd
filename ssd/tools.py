@@ -57,6 +57,27 @@ def show_bboxes(img, predictions, num_classes, figsize=(24, 12), ax=None, font_s
         text = ax.text(xmin, ymin, label, verticalalignment='top', fontsize=font_size,
                        bbox={'facecolor': color, 'alpha': 0.5})
 
+def show_classes(imgs, predictions, num_classes, cols, figsize=(24, 12), ax=None, font_size=14):
+    nb_images = len(imgs)
+    rows = nb_images // cols
+
+    colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
+
+    fig, axes = plt.subplots(rows, cols, figsize=(12, 8))
+
+    for img, pred, (i, ax) in zip(imgs, predictions, enumerate(axes.flat)):
+        predicted_class_id = np.argmax(pred)
+        label_idx = int(predicted_class_id - 1)
+        prob = pred[predicted_class_id]
+        label = PascalVoc2012.CLASSES[label_idx] + ': ' + "{0:.2f}".format(prob)
+        color = colors[label_idx]
+
+        ax.imshow(img)
+        text = ax.text(0, 0, label, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
+
+    plt.tight_layout()
+
+
 """
 Plot train/valid loss curves and save plot to the file ./loss_curve.png.
 """
