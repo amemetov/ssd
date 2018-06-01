@@ -3,24 +3,59 @@ import cv2
 from scipy.misc.pilutil import imread, imresize
 
 def load_img(path):
-    # loads image as uint8
-    return imread(path)
+    # loads image as uint8 cause below augmentation methods expect RGB image with type uint8
+    #return imread(path)
+
+    flags = cv2.IMREAD_UNCHANGED + cv2.IMREAD_ANYDEPTH + cv2.IMREAD_ANYCOLOR
+    img = cv2.imread(path, flags)
+    if img is None:
+        raise OSError("Can't read an image: {}".format(path))
+    try:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return img
+    except Exception as e:
+        raise OSError("Can't convert image {} using COLOR_BGR2RGB".format(path)) from e
 
 def resize_img(img, target_img_size):
     return imresize(img, target_img_size).astype('float32')
 
-def normalize_img(img):
-    #if issubclass(img.dtype.type, np.int):
-    #    img = img / 255.0
+IMAGENET_RGB_MEAN = np.array([103.939, 116.779, 123.68], dtype=np.float32)
+MEAN = IMAGENET_RGB_MEAN
 
-    # normalize
-    img = img / 127.5 - 1.0
-    # img = img / 255.0
+def normalize_img(img, mean=MEAN):
+    # Zero-center by mean pixel
+    img -= mean
+
+    # Squash to about [-0.5, 0.5]
+    img = img / 255.0
+
+    # Convert RGB -> BGR
+    img = img[..., ::-1]
+
+    return img
+
+def denormalize_img(img, mean=MEAN):
+    # Convert BGR -> RGB
+    img = img[..., ::-1]
+
+    # Undo squashing
+    img = img * 255
+
+    # Undo zero-center by mean pixel
+    img += mean
+
+    img = np.clip(img, 0, 255).astype(np.uint8)
     return img
 
 def preprocess_img(img, target_img_size):
     img = resize_img(img, target_img_size)
+
     img = normalize_img(img)
+
+    # img -= MEAN
+    # # 'RGB'->'BGR'
+    # img = img[:, :, ::-1]
+
     return img
 
 
