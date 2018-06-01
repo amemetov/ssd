@@ -5,30 +5,22 @@ from . import bbox_codec
 from . import imaging
 
 class DataAugmenter(object):
-    def __init__(self, target_img_size, scale_range=(0.3, 1.0),
-                 aspect_ratio_range=(0.5, 2.0), jaccard_overlap_range=(0.0, 1.0)):
-        self.target_img_size = target_img_size
+    def __init__(self, scale_range=(0.3, 1.0), aspect_ratio_range=(0.5, 2.0), jaccard_overlap_range=(0.0, 1.0)):
         self.scale_range = scale_range
         self.aspect_ratio_range = aspect_ratio_range
         self.jaccard_overlap_range = jaccard_overlap_range
 
-    def augment(self, img, y, do_augment=True):
-        # work with the copy of y
+    def augment(self, img, y):
         y = np.copy(y)
 
-        if do_augment:
-            # 1. Randomly Sample
-            img, y = self.__randomly_sample_patch(img, y)
+        # 1. Randomly Sample
+        img, y = self.__randomly_sample_patch(img, y)
 
-        # 2. Resize to fixed size
-        img = imaging.resize_img(img, self.target_img_size)
+        # 2. Horizontally flip
+        img, y = self.__horizontally_flip(img, y)
 
-        if do_augment:
-            # 3. Horizontally flip
-            img, y = self.__horizontally_flip(img, y)
-
-            # 4. Photo-metric distortions
-            img = self.__apply_photo_metric_distortions(img)
+        # 3. Photo-metric distortions
+        img = self.__apply_photo_metric_distortions(img)
 
         return img, y
 

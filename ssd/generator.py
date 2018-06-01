@@ -14,13 +14,15 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir, data_augmenter, bbox_codec):
+    def __init__(self, gtb, img_dir, target_img_size, data_augmenter, bbox_codec, do_augment=True):
         self.gtb = gtb
         self.img_dir = img_dir
+        self.target_img_size = target_img_size
         self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
+        self.do_augment = do_augment
 
-    def flow(self, img_file_names, do_augment=True, batch_size=32):
+    def flow(self, img_file_names, batch_size=32):
         num_samples = len(img_file_names)
         while True:
             samples = shuffle(img_file_names)
@@ -42,21 +44,25 @@ class Generator(object):
                     # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
 
+                    # work with the copy of y
+                    y = np.copy(y)
+
+                    # Do data augmentation
+                    if self.do_augment:
+                        img, y = self.data_augmenter.augment(img, y)
+
                     # skip samples which have no GTB
                     if y.shape[0] == 0:
                         continue
 
-                    # Do data augmentation
-                    img, y = self.data_augmenter.augment(img, y, do_augment)
-
-                    # normalize
-                    img = imaging.normalize_img(img)
+                    # Preprocess image
+                    img = imaging.preprocess_img(img, self.target_img_size)
 
                     # Convert origin GTBs to format expected by NN
                     y_encoded = self.bbox_codec.encode(y)
 
                     # skip samples which have no matched PB <-> GTB
-                    if np.sum(y_encoded[:, -8]) == 0:
+                    if len(y_encoded.shape) > 1 and np.sum(y_encoded[:, -8]) == 0:
                         continue
 
                     x_batch.append(img)
