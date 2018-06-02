@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches, patheffects
 
 from .data import PascalVoc2012
+import ssd.imaging as imaging
 
 def draw_boxes(img, prior_boxes, log=False):
     if log:
@@ -112,3 +113,15 @@ def _plot_history_curve(plt_col, train_values, valid_values, title, ylabel, xlab
     plt_col.set_ylabel(ylabel)
     plt_col.set_xlabel(xlabel)
     plt_col.legend(['train', 'valid'], loc='upper left')
+
+def make_prediction(model, target_img_size, base_dir, test_files):
+    test_images = []
+    x_test = []
+    for file in test_files:
+        test_img = imaging.load_img(base_dir + file)
+        test_images.append(test_img)
+        x_test.append(imaging.preprocess_img(test_img, target_img_size))
+
+    x_test = np.array(x_test)
+    y_pred = model.predict(x_test)
+    return test_images, x_test, y_pred

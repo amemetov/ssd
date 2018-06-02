@@ -2,6 +2,12 @@ import os
 import numpy as np
 from xml.etree import ElementTree
 
+# see in voc_base_dir 'ImageSets/Main/train.txt', 'ImageSets/Main/val.txt', 'ImageSets/Main/trainval.txt'
+def load_samples_list(fileName):
+    with open(fileName, "r") as text_file:
+        lines = text_file.readlines()
+        result = [x.strip() + '.jpg' for x in lines]
+        return result
 
 # see http://host.robots.ox.ac.uk/pascal/VOC/voc2012/#data
 class PascalVoc2012(object):
