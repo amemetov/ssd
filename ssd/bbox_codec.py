@@ -211,14 +211,42 @@ class LargestObjClassCodec(object):
         return y_encoded
 
 class LargestObjBoxCodec(object):
+    def __init__(self, code_type='center_size'):
+        if code_type not in ['center_size', 'coords']:
+            raise ValueError("code_type shoudl be on of ['center_size', 'coords']")
+
+        self.code_type = code_type
+
     def encode(self, y_orig):
         # encode - take the largest bbox
         # y_orig [:, 0:4] - GTB loc (xmin, ymin, xmax, ymax) normalized by corresponding image size
         y_encoded = sorted(y_orig, key=lambda x: (x[2] - x[0]) * (x[3] - x[1]), reverse=True)[0]
+
+        bbox = y_encoded[:4]
+
+        if self.code_type == 'center_size':
+            # convert to center with size
+            bbox_center = 0.5 * (bbox[:2] + bbox[2:4])
+            bbox_wh = bbox[2:4] - bbox[:2]
+            bbox = np.concatenate((bbox_center, bbox_wh))
+
         # keep only bbox
-        y_encoded = y_encoded[:4]
+        y_encoded = bbox
 
         return y_encoded
+
+    def decode(self, y_pred):
+        bbox = y_pred#[0:4]
+
+        if self.code_type == 'center_size':
+            bbox_center = bbox[:2]
+            bbox_wh = bbox[2:]
+            # decode bbox loc from box center and size
+            bbox[:2] = bbox_center - 0.5 * bbox_wh
+            bbox[2:] = bbox_center + 0.5 * bbox_wh
+
+        bbox = np.clip(bbox, 0, 1)
+        return bbox
 
 class LargestObjBoxAndClassCodec(object):
     def encode(self, y_orig):
