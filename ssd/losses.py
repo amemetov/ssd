@@ -2,6 +2,20 @@ import keras.backend as K
 from keras import losses
 import tensorflow as tf
 
+
+def l1_loss(y_true, y_pred):
+    return K.sum(K.abs(y_true - y_pred), -1)
+
+
+def smooth_l1_loss(y_true, y_pred):
+    # https://arxiv.org/abs/1504.08083
+    abs_loss = K.abs(y_true - y_pred)
+    sq_loss = 0.5 * (y_true - y_pred) ** 2
+    otherwise_loss = abs_loss - 0.5
+    l1_loss = tf.where(K.less(abs_loss, 1.0), sq_loss, otherwise_loss)
+    return K.sum(l1_loss, -1)
+
+
 class SsdLoss(object):
     def __init__(self, num_classes, hard_neg_pos_ratio=3):
         self.num_classes = num_classes
@@ -57,7 +71,7 @@ class SsdLoss(object):
         y_pred_loc = y_pred[:, :, :4]
 
         # loc loss for all PriorBoxes
-        loc_loss = self._smooth_l1_loss(y_true_loc, y_pred_loc)
+        loc_loss = smooth_l1_loss(y_true_loc, y_pred_loc)
 
         # 1D Tensor (batch_size, ) containing loc pos loss for each image (in the batch)
         loc_pos_loss = K.sum(y_matching_mask * loc_loss, axis=1)
@@ -125,14 +139,6 @@ class SsdLoss(object):
 
         _, top_indices_mask = tf.while_loop(cond, body, [0, top_indices_mask])
         return top_indices_mask.stack()
-
-    def _smooth_l1_loss(self, y_true, y_pred):
-        # https://arxiv.org/abs/1504.08083
-        abs_loss = K.abs(y_true - y_pred)
-        sq_loss = 0.5 * (y_true - y_pred) ** 2
-        otherwise_loss = abs_loss - 0.5
-        l1_loss = tf.where(K.less(abs_loss, 1.0), sq_loss, otherwise_loss)
-        return K.sum(l1_loss, -1)
 
     def _softmax_loss(self, y_true, y_pred):
         return losses.categorical_crossentropy(y_true, y_pred)
