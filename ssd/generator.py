@@ -14,15 +14,14 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir, target_img_size, data_augmenter, bbox_codec, do_augment=True):
+    def __init__(self, gtb, img_dir, target_img_size, data_augmenter, bbox_codec):
         self.gtb = gtb
         self.img_dir = img_dir
         self.target_img_size = target_img_size
         self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
-        self.do_augment = do_augment
 
-    def flow(self, img_file_names, batch_size=32):
+    def flow(self, img_file_names, batch_size=32, do_augment=True):
         num_samples = len(img_file_names)
         while True:
             samples = shuffle(img_file_names)
@@ -48,7 +47,7 @@ class Generator(object):
                     y = np.copy(y)
 
                     # Do data augmentation
-                    if self.do_augment:
+                    if do_augment:
                         img, y = self.data_augmenter.augment(img, y)
 
                     # skip samples which have no GTB
