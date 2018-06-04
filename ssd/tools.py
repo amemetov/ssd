@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from matplotlib import patches, patheffects
 
 from .data import PascalVoc2012
 import ssd.imaging as imaging
@@ -15,7 +14,6 @@ def draw_boxes(img, prior_boxes, log=False):
     img_w, img_h = img.shape[1], img.shape[0]
 
     colors = plt.cm.hsv(np.linspace(0, 1, len(prior_boxes))).tolist()
-    #print('colors: {}'.format(colors))
 
     for box, idx in zip(prior_boxes, range(0, len(prior_boxes))):
         xmin = int(box[0] * img_w)
@@ -181,41 +179,9 @@ def show_detections(img, predictions, num_classes, figsize=(12, 8), ax=None, fon
         patch = ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
         text = ax.text(xmin, ymin, label, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
 
-
 """
-Plot train/valid loss curves and save plot to the file ./loss_curve.png.
+Prediction utilities
 """
-def plot_loss(history, out_file=None):
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('Model Loss')
-    plt.ylabel('Loss')
-    plt.xlabel('Epoch')
-    plt.legend(['train', 'valid'], loc='upper left')
-    if out_file is not None:
-        plt.savefig(out_file)
-    #plt.close()
-    plt.tight_layout()
-
-def plot_loss_and_acc(history):
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 5))
-
-    plt_col1 = axes[0]
-    _plot_curve(plt_col1, history.history['acc'], history.history['val_acc'], 'Model Accuracy', 'accuracy', 'epoch')
-
-    plt_col2 = axes[1]
-    _plot_curve(plt_col2, history.history['loss'], history.history['val_loss'], 'Model Loss', 'loss', 'epoch')
-
-    plt.tight_layout()
-
-def _plot_curve(plt_col, train_values, valid_values, title, ylabel, xlabel):
-    plt_col.plot(train_values)
-    plt_col.plot(valid_values)
-    plt_col.set_title(title)
-    plt_col.set_ylabel(ylabel)
-    plt_col.set_xlabel(xlabel)
-    plt_col.legend(['train', 'valid'], loc='upper left')
-
 def make_prediction_bboxes(model, target_img_size, base_dir, test_files, bbox_codec):
     orig_images, preprocessed_images, y_pred = make_prediction(model, target_img_size, base_dir, test_files)
     result_bboxes = []
@@ -237,6 +203,9 @@ def make_prediction(model, target_img_size, base_dir, test_files):
     y_pred = model.predict(preprocessed_images)
     return orig_images, preprocessed_images, y_pred
 
+"""
+Freeze passed model starting from pointed layer
+"""
 def freeze_model(model, freeze_start_layer_name):
     #model.trainable = True
     trainable = False
@@ -244,3 +213,79 @@ def freeze_model(model, freeze_start_layer_name):
         if layer.name == freeze_start_layer_name:
             trainable = True
         layer.trainable = trainable
+
+
+"""
+Plot train/valid loss curves and save plot to the file ./loss_curve.png.
+"""
+def plot_loss(history, figsize=(12, 8), ax=None):
+    plot_curve(history.history, ['loss', 'val_loss'], ['train', 'valid'], 'Model Loss', 'Loss', 'Epoch',
+               figsize=figsize, ax=ax)
+
+def plot_accuracy(history, figsize=(12, 8), ax=None):
+    plot_curve(history.history, ['acc', 'val_acc'], ['train', 'valid'], 'Model Accuracy', 'Accuracy', 'Epoch',
+               figsize=figsize, ax=ax)
+
+def plot_loss_and_acc(history, figsize=(12, 8)):
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 8))
+    plot_loss(history, figsize=figsize, ax=axes[0])
+    plot_accuracy(history, figsize=figsize, ax=axes[1])
+
+def plot_losses(histories, model_names, figsize=(12, 8), ax=None):
+    if len(histories) != len(model_names):
+        raise ValueError("Length of 'histories' should be equal to length of 'model_names'")
+
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
+
+    ax.set_title('Losses')
+    ax.set_ylabel('Loss')
+    ax.set_xlabel('Epoch')
+
+    for h, name in zip(histories, model_names):
+        plot_curve(h.history, ['loss', 'val_loss'], ['train-'+name, 'valid-'+name], ax=ax)
+
+def plot_accuracies(histories, model_names, figsize=(12, 8), ax=None):
+    if len(histories) != len(model_names):
+        raise ValueError("Length of 'histories' should be equal to length of 'model_names'")
+
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
+
+    ax.set_title('Accuracies')
+    ax.set_ylabel('Accuracy')
+    ax.set_xlabel('Epoch')
+
+    for h, name in zip(histories, model_names):
+        plot_curve(h.history, ['acc', 'val_acc'], ['train-'+name, 'valid-'+name], ax=ax)
+
+def plot_losses_and_accuracies(histories, model_names, figsize=(12, 8)):
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=figsize)
+    plot_losses(histories, model_names, axes[0])
+    plot_accuracies(histories, model_names, axes[0])
+
+def plot_curve(data, keys, data_titles, title=None, ylabel=None, xlabel=None, figsize=(12, 8), ax=None, out_file=None):
+    if data_titles is None:
+        data_titles = keys
+
+    if len(data_titles) < len(keys):
+        # get copy
+        data_titles = data_titles[:]
+        # use extra keys
+        for i in range(len(data_titles), len(keys)):
+            data_titles.append(keys[i])
+
+    if not ax: fig, ax = plt.subplots(figsize=figsize)
+    if title: ax.set_title(title)
+    if ylabel: ax.set_ylabel(ylabel)
+    if xlabel: ax.set_xlabel(xlabel)
+
+    for k, t in zip(keys, data_titles):
+        ax.plot(data[k], label=t)
+
+    ax.legend(loc='upper left')
+
+    # save into file
+    if out_file:
+        plt.savefig(out_file)
+    #plt.close()
+
+    plt.tight_layout()
