@@ -15,6 +15,15 @@ def smooth_l1_loss(y_true, y_pred):
     l1_loss = tf.where(K.less(abs_loss, 1.0), sq_loss, otherwise_loss)
     return K.sum(l1_loss, -1)
 
+def softmax_loss(y_true, y_pred):
+    return losses.categorical_crossentropy(y_true, y_pred)
+
+    # prevent division by zero
+    # eps = 1e-15
+    # y_pred = K.clip(y_pred, eps, 1. - eps)
+    # log_loss = -K.sum(y_true * K.log(y_pred), axis=-1)
+    # return log_loss
+
 
 class SsdLoss(object):
     def __init__(self, num_classes, hard_neg_pos_ratio=3):
@@ -89,7 +98,7 @@ class SsdLoss(object):
 
         # conf loss for all PriorBoxes
         # (batch_size, num_boxes)
-        full_conf_loss = self._softmax_loss(y_true[:, :, conf_start_idx:conf_end_idx], y_pred[:, :, conf_start_idx:conf_end_idx])
+        full_conf_loss = softmax_loss(y_true[:, :, conf_start_idx:conf_end_idx], y_pred[:, :, conf_start_idx:conf_end_idx])
 
         pos_indices_mask = y_matching_mask
         neg_indices_mask = self._mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask, num_pos, num_boxes)
@@ -140,12 +149,4 @@ class SsdLoss(object):
         _, top_indices_mask = tf.while_loop(cond, body, [0, top_indices_mask])
         return top_indices_mask.stack()
 
-    def _softmax_loss(self, y_true, y_pred):
-        return losses.categorical_crossentropy(y_true, y_pred)
-
-        # prevent division by zero
-        # eps = 1e-15
-        # y_pred = K.clip(y_pred, eps, 1. - eps)
-        # log_loss = -K.sum(y_true * K.log(y_pred), axis=-1)
-        # return log_loss
 
