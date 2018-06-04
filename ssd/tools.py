@@ -260,7 +260,7 @@ def plot_accuracies(histories, model_names, figsize=(12, 8), ax=None):
 def plot_losses_and_accuracies(histories, model_names, figsize=(12, 8)):
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=figsize)
     plot_losses(histories, model_names, axes[0])
-    plot_accuracies(histories, model_names, axes[0])
+    plot_accuracies(histories, model_names, axes[1])
 
 def plot_curve(data, keys, data_titles, title=None, ylabel=None, xlabel=None, figsize=(12, 8), ax=None, out_file=None):
     if data_titles is None:
