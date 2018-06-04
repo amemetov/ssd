@@ -267,11 +267,8 @@ def plot_curve(data, keys, data_titles, title=None, ylabel=None, xlabel=None, fi
         data_titles = keys
 
     if len(data_titles) < len(keys):
-        # get copy
-        data_titles = data_titles[:]
-        # use extra keys
-        for i in range(len(data_titles), len(keys)):
-            data_titles.append(keys[i])
+        # use tail of keys as replacement for absent titles
+        data_titles = data_titles + keys[len(data_titles):]
 
     if not ax: fig, ax = plt.subplots(figsize=figsize)
     if title: ax.set_title(title)
