@@ -6,29 +6,33 @@ from .data import PascalVoc2012
 import ssd.imaging as imaging
 
 # use show_bboxes instead
-def draw_boxes(img, prior_boxes, log=False):
-    if log:
-        print('Drawing {} boxes'.format(len(prior_boxes)))
+# def draw_boxes(img, prior_boxes, log=False):
+#     if log:
+#         print('Drawing {} boxes'.format(len(prior_boxes)))
+#
+#     img = np.copy(img)
+#     img_w, img_h = img.shape[1], img.shape[0]
+#
+#     colors = plt.cm.hsv(np.linspace(0, 1, len(prior_boxes))).tolist()
+#
+#     for box, idx in zip(prior_boxes, range(0, len(prior_boxes))):
+#         xmin = int(box[0] * img_w)
+#         ymin = int(box[1] * img_h)
+#         xmax = int(box[2] * img_w)
+#         ymax = int(box[3] * img_h)
+#
+#         cv2.rectangle(img, (xmin, ymin), (xmax, ymax), colors[idx], 1)
+#         if log:
+#             print('({},{}), ({}, {})'.format(xmin, ymin, xmax, ymax))
+#
+#     plt.figure(figsize=(24, 12))
+#     plt.imshow(img)
 
-    img = np.copy(img)
-    img_w, img_h = img.shape[1], img.shape[0]
-
-    colors = plt.cm.hsv(np.linspace(0, 1, len(prior_boxes))).tolist()
-
-    for box, idx in zip(prior_boxes, range(0, len(prior_boxes))):
-        xmin = int(box[0] * img_w)
-        ymin = int(box[1] * img_h)
-        xmax = int(box[2] * img_w)
-        ymax = int(box[3] * img_h)
-
-        cv2.rectangle(img, (xmin, ymin), (xmax, ymax), colors[idx], 1)
-        if log:
-            print('({},{}), ({}, {})'.format(xmin, ymin, xmax, ymax))
-
-    plt.figure(figsize=(24, 12))
-    plt.imshow(img)
-
-def show_categories(images, predictions, num_classes, cols, conf_threshold=None, figsize=(12, 8), font_size=14):
+"""
+Use this method to show the raw result of NN when only categories is predicted.
+For example when LargestObjClassCodec is being used.
+"""
+def show_categories(images, predictions, num_classes, conf_threshold=None, cols=1, figsize=(12, 8), font_size=12):
     if len(images) != len(predictions):
         raise ValueError("The size of 'images' list should be equal to the size of 'predictions' list")
 
@@ -70,11 +74,16 @@ def __show_categories(ax, categories, confs, colors, font_size, x=0, y=0):
         label_idx = int(cat - 1)# take background into account
         label = PascalVoc2012.CLASSES[label_idx] + ': ' + "{0:.2f}".format(conf)
         color = colors[label_idx]
-        text = text + label + '\n'
+        prefix = '' if text == '' else '\n'
+        text = prefix + text + label
 
     ax.text(x, y, text, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
 
-def show_bboxes(images, bboxes, num_classes, cols, figsize=(12, 8)):
+"""
+Show normalized bboxes.
+Use this method when LargestObjBoxCodec is being used.
+"""
+def show_bboxes(images, bboxes, cols=1, figsize=(12, 8)):
     if len(images) != len(bboxes):
         raise ValueError("The size of 'images' list should be equal to the size of 'bboxes' list")
 
@@ -101,7 +110,11 @@ def show_bboxes(images, bboxes, num_classes, cols, figsize=(12, 8)):
             coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
             patch = ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
 
-def show_predictions(images, predictions, num_classes, cols, conf_threshold=None, figsize=(12, 8), ax=None, font_size=14):
+"""
+Use this method to show the raw output of NN.
+Appropriate when BBoxCodec or LargestObjBoxAndClassCodec are being used.
+"""
+def show_predictions(images, predictions, num_classes, conf_threshold=None, cols=1, figsize=(12, 8), font_size=12):
     if len(images) != len(predictions):
         raise ValueError("The size of 'images' list should be equal to the size of 'predictions' list")
 
@@ -151,8 +164,10 @@ def show_predictions(images, predictions, num_classes, cols, conf_threshold=None
 
     plt.tight_layout()
 
-
-def show_detections(img, predictions, num_classes, figsize=(12, 8), ax=None, font_size=14):
+"""
+Use this method to show the result built by Detection.detect_bboxes
+"""
+def show_detections(img, predictions, num_classes, figsize=(12, 8), ax=None, font_size=12):
     if not ax:
         fig, ax = plt.subplots(figsize=figsize)
 
