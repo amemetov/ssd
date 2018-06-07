@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -29,6 +30,25 @@ import ssd.imaging as imaging
 #     plt.imshow(img)
 
 """
+Use this method to show original GTBs with categories.
+"""
+def show_gtbs(base_dir, test_files, global_gtbs, num_classes, cols=1, figsize=(12, 8), font_size=12):
+    orig_images = []
+    orig_gtbs = []
+    for file in test_files:
+        img = imaging.load_img(base_dir + file)
+        orig_images.append(img)
+
+        gtbs = global_gtbs[file].copy()
+        # add background
+        bg_col = np.zeros((len(gtbs), 1))
+        gtbs = np.concatenate((gtbs[:, :4], bg_col[:], gtbs[:, 4:]), axis=1)
+
+        orig_gtbs.append(gtbs)
+
+    show_predictions(orig_images, orig_gtbs, num_classes, cols=cols, conf_threshold=None, figsize=figsize, font_size=font_size)
+
+"""
 Use this method to show the raw result of NN when only categories is predicted.
 For example when LargestObjClassCodec is being used.
 """
@@ -40,7 +60,7 @@ def show_categories(images, predictions, num_classes, conf_threshold=None, cols=
         raise ValueError("'conf_threshold' should be either None or in range [0, 1]")
 
     nb_images = len(images)
-    rows = nb_images // cols
+    rows = math.ceil(nb_images / cols)
 
     colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
 
@@ -88,7 +108,7 @@ def show_bboxes(images, bboxes, cols=1, figsize=(12, 8)):
         raise ValueError("The size of 'images' list should be equal to the size of 'bboxes' list")
 
     nb_images = len(images)
-    rows = nb_images // cols
+    rows = math.ceil(nb_images / cols)
     fig, axes = plt.subplots(rows, cols, figsize=figsize)
 
     for img, boxes, (i, ax) in zip(images, bboxes, enumerate(axes.flat)):
@@ -122,7 +142,7 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
         raise ValueError("'conf_threshold' should be either None or in range [0, 1]")
 
     nb_images = len(images)
-    rows = nb_images // cols
+    rows = math.ceil(nb_images / cols)
 
     category_colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
 
