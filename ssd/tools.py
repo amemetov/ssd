@@ -4,7 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from .data import PascalVoc2012
-import ssd.imaging as imaging
+from .imaging import load_img, preprocess_img
 
 # use show_bboxes instead
 # def draw_boxes(img, prior_boxes, log=False):
@@ -36,7 +36,7 @@ def show_gtbs(base_dir, test_files, global_gtbs, num_classes, cols=1, figsize=(1
     orig_images = []
     orig_gtbs = []
     for file in test_files:
-        img = imaging.load_img(base_dir + file)
+        img = load_img(base_dir + file)
         orig_images.append(img)
 
         gtbs = global_gtbs[file].copy()
@@ -69,6 +69,9 @@ def show_categories(images, predictions, num_classes, conf_threshold=None, cols=
     for img, confs, (i, ax) in zip(images, predictions, enumerate(axes.flat)):
         ax.imshow(img)
 
+        # get rid off background
+        confs = confs[1:]
+
         if conf_threshold is None:
             cat_id = np.argmax(confs)
             cat_conf = confs[cat_id]
@@ -91,17 +94,19 @@ def show_categories(images, predictions, num_classes, conf_threshold=None, cols=
 def __show_categories(ax, categories, confs, colors, font_size, x=0, y=0):
     text = ''
     for cat, conf in zip(categories, confs):
-        label_idx = int(cat - 1)# take background into account
+        label_idx = cat
         label = PascalVoc2012.CLASSES[label_idx] + ': ' + "{0:.2f}".format(conf)
         color = colors[label_idx]
         prefix = '' if text == '' else '\n'
         text = prefix + text + label
 
-    ax.text(x, y, text, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
+    if text != '':
+        ax.text(x, y, text, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
 
 """
 Show normalized bboxes.
 Use this method when LargestObjBoxCodec is being used.
+bboxes are presented as corners - [xmin, ymin, xmax, ymax] normalized by image size
 """
 def show_bboxes(images, bboxes, cols=1, figsize=(12, 8)):
     if len(images) != len(bboxes):
@@ -147,6 +152,8 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
     category_colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
 
     fig, axes = plt.subplots(rows, cols, figsize=figsize)
+    if nb_images == 1:
+        axes = np.array([axes])
 
     for img, img_preds, (i, ax) in zip(images, predictions, enumerate(axes.flat)):
         if img_preds.ndim == 1:
@@ -159,28 +166,35 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
 
         for pred, bbox_color in zip(img_preds, bbox_colors):
             bbox = np.clip(pred[:4], 0, 1)
-            confs = pred[4:]
+            confs = pred[5:4+num_classes]# skip background
 
             xmin, ymin, xmax, ymax = int(bbox[0] * img_w), int(bbox[1] * img_h), int(bbox[2] * img_w), int(bbox[3] * img_h)
-            coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
-            ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=bbox_color, linewidth=2))
+
+            add_rect = False
 
             if conf_threshold is None:
+                add_rect = True
                 cat_id = np.argmax(confs)
                 cat_conf = confs[cat_id]
 
                 __show_categories(ax, [cat_id], [cat_conf], category_colors, font_size, xmin, ymin)
             else:
                 mask = confs > conf_threshold
-                thresholded_categories = np.nonzero(mask)[0]
-                thresholded_confs = confs[mask]
+                if np.sum(mask) > 0:
+                    add_rect = True
+                    thresholded_categories = np.nonzero(mask)[0]
+                    thresholded_confs = confs[mask]
 
-                # sort in desc order
-                sort_indices = np.argsort(thresholded_confs)[::-1]
-                thresholded_categories = thresholded_categories[sort_indices]
-                thresholded_confs = thresholded_confs[sort_indices]
+                    # sort in desc order
+                    sort_indices = np.argsort(thresholded_confs)[::-1]
+                    thresholded_categories = thresholded_categories[sort_indices]
+                    thresholded_confs = thresholded_confs[sort_indices]
 
-                __show_categories(ax, thresholded_categories, thresholded_confs, category_colors, font_size, xmin, ymin)
+                    __show_categories(ax, thresholded_categories, thresholded_confs, category_colors, font_size, xmin, ymin)
+
+            if add_rect:
+                coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+                ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=bbox_color, linewidth=2))
 
     plt.tight_layout()
 
@@ -230,9 +244,9 @@ def make_prediction(model, target_img_size, base_dir, test_files):
     orig_images = []
     preprocessed_images = []
     for file in test_files:
-        img = imaging.load_img(base_dir + file)
+        img = load_img(base_dir + file)
         orig_images.append(img)
-        preprocessed_images.append(imaging.preprocess_img(img, target_img_size))
+        preprocessed_images.append(preprocess_img(img, target_img_size))
 
     preprocessed_images = np.array(preprocessed_images)
     y_pred = model.predict(preprocessed_images)
@@ -253,9 +267,9 @@ def freeze_model(model, freeze_start_layer_name):
 """
 Plot train/valid loss curves and save plot to the file ./loss_curve.png.
 """
-def plot_loss(history, figsize=(12, 8), ax=None):
+def plot_loss(history, figsize=(12, 8), ax=None, out_file=None):
     plot_curve(history.history, ['loss', 'val_loss'], ['train', 'valid'], 'Model Loss', 'Loss', 'Epoch',
-               figsize=figsize, ax=ax)
+               figsize=figsize, ax=ax, out_file=out_file)
 
 def plot_accuracy(history, figsize=(12, 8), ax=None):
     plot_curve(history.history, ['acc', 'val_acc'], ['train', 'valid'], 'Model Accuracy', 'Accuracy', 'Epoch',
