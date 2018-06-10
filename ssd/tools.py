@@ -3,8 +3,11 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
+from keras.models import load_model
+
 from .data import PascalVoc2012
 from .imaging import load_img, preprocess_img
+from .layers import L2Normalize, PriorBox
 
 # use show_bboxes instead
 # def draw_boxes(img, prior_boxes, log=False):
@@ -263,6 +266,8 @@ def freeze_model(model, freeze_start_layer_name):
             trainable = True
         layer.trainable = trainable
 
+def load_ssd_model(filepath):
+    return load_model(filepath, custom_objects={'L2Normalize': L2Normalize, 'PriorBox': PriorBox})
 
 """
 Plot train/valid loss curves and save plot to the file ./loss_curve.png.

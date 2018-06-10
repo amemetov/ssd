@@ -1,9 +1,10 @@
+import json
+import numpy as np
+
 import keras.backend as K
 from keras.engine.topology import InputSpec
 from keras.engine.topology import Layer
 from keras.initializers import Constant
-
-from .prior_box import doCreatePriorBoxes
 
 
 
@@ -52,6 +53,16 @@ class L2Normalize(Layer):
         output *= self.gamma
         return output
 
+    def get_config(self):
+        config = {'scale': int(self.scale)}
+        base_config = super(L2Normalize, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        scale = config['scale']
+        return cls(scale)
+
 
 class PriorBox(Layer):
     """ Layer that generates the prior boxes of designated sizes and aspect ratios
@@ -93,3 +104,13 @@ class PriorBox(Layer):
         prior_boxes_tensor = K.expand_dims(prior_boxes_tensor, 0)
         prior_boxes_tensor = K.tile(prior_boxes_tensor, [K.shape(inputs)[0], 1, 1])
         return prior_boxes_tensor
+
+    def get_config(self):
+        config = {'prior_boxes': json.dumps(self.prior_boxes.tolist())}
+        base_config = super(PriorBox, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        prior_boxes = np.array(json.loads(config['prior_boxes']))
+        return cls(prior_boxes)
