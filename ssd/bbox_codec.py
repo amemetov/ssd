@@ -7,6 +7,9 @@ def intersectionOverUnion(gtb, pb):
     right = min(gtb[2], pb[2])
     bottom = min(gtb[3], pb[3])
 
+    right = np.maximum(right, left)
+    bottom = np.maximum(bottom, top)
+
     # area of intersection
     inter_area = (right - left) * (bottom - top)
 
@@ -160,7 +163,7 @@ class BBoxCodec(object):
         prior_boxes = self.prior_boxes[pb_indices]
         pb_center = 0.5 * (prior_boxes[:, :2] + prior_boxes[:, 2:4])
         pb_wh = prior_boxes[:, 2:4] - prior_boxes[:, :2]
-        pb_variances = prior_boxes[:, -4:]
+
 
         # encode offsets (cx, cy, w, h) relative to the PriorBox coordinates
         # see loss computing in the origin SSD paper
@@ -169,6 +172,7 @@ class BBoxCodec(object):
 
         if self.encode_variances:
             # encode variance of cx, cy, w, h
+            pb_variances = prior_boxes[:, -4:]
             y_result[pb_indices, :4] /= pb_variances
 
         # probability of the background_class is 0
@@ -186,6 +190,9 @@ class BBoxCodec(object):
         top = np.maximum(gtbs[:, 1], self.pb_broadcasted[:, :, 1])
         right = np.minimum(gtbs[:, 2], self.pb_broadcasted[:, :, 2])
         bottom = np.minimum(gtbs[:, 3], self.pb_broadcasted[:, :, 3])
+
+        right = np.maximum(right, left)
+        bottom = np.maximum(bottom, top)
 
         # area of intersection
         inter_area = (right - left) * (bottom - top)
@@ -279,3 +286,4 @@ class LargestObjBoxAndClassCodec(object):
             y_pred[2:4] = bbox_center + 0.5 * bbox_wh
 
         return y_pred
+
