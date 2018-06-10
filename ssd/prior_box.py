@@ -4,48 +4,23 @@ import numpy as np
 # https://github.com/weiliu89/caffe/blob/ssd/examples/ssd/ssd_pascal.py
 # https://github.com/weiliu89/caffe/blob/ssd/src/caffe/layers/prior_box_layer.cpp
 
-default_img_width, default_img_height = 300, 300
-
+# VGG16 config is taken from the origin caffe implementation
 # conv4_3 ==> 38 x 38
 # fc7 ==> 19 x 19
 # conv6_2 ==> 10 x 10
 # conv7_2 ==> 5 x 5
 # conv8_2 ==> 3 x 3
 # conv9_2 ==> 1 x 1
-mbox_source_layers = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
-default_layers_size=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)]
-default_aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
-default_steps = [8, 16, 32, 64, 100, 300]
+vgg16_mbox_source_layers = ['conv4_3', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
+vgg16_layers_size=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)]
+vgg16__aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
+vgg16__steps = [8, 16, 32, 64, 100, 300]
 
 # L2 normalize conv4_3.
-default_normalizations = [20, -1, -1, -1, -1, -1]
+vgg16_normalizations = [20, -1, -1, -1, -1, -1]
 
 # variance used to encode/decode prior bboxes.
 default_prior_variance = [0.1, 0.1, 0.2, 0.2]
-
-default_flip = True
-default_clip = True
-
-default_config = [
-    {'layer_width': 38, 'layer_height': 38, 'num_prior': 4,
-     'min_size': 30.0, 'max_size': 60.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]},
-
-    {'layer_width': 19, 'layer_height': 19, 'num_prior': 6,
-     'min_size': 60.0, 'max_size': 111.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
-
-    {'layer_width': 10, 'layer_height': 10, 'num_prior': 6,
-     'min_size': 111.0, 'max_size': 162.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
-
-    {'layer_width': 5, 'layer_height': 5, 'num_prior': 6,
-     'min_size': 162.0, 'max_size': 213.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5, 3, 1/3.0]},
-
-    {'layer_width': 3, 'layer_height': 3, 'num_prior': 4,
-     'min_size': 213.0, 'max_size': 264.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]},
-
-    {'layer_width': 1, 'layer_height': 1, 'num_prior': 4,
-     'min_size': 264.0, 'max_size': 315.0, 'aspect_ratios': [1.0, 1.0, 2.0, 0.5]}
-]
-
 
 def gen_prior_boxes_config(img_w, img_h, layers, normalizations, layers_size, aspect_ratios,
                            flip=True, min_ratio=20, max_ratio = 90):
@@ -88,7 +63,7 @@ def _create_config_item(layer_name, norm, layer_w, layer_h, min_size, max_size, 
             'aspect_ratios': aspect_ratios}
 
 
-def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offset=0.5):
+def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=False, offset=0.5):
     result = []
     for layer_config in box_config:
         layer_w = layer_config['layer_width']
@@ -144,7 +119,7 @@ def create_prior_boxes_iter(img_w, img_h, box_config, variance, clip=True, offse
     return result
 
 
-def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=True, offset=0.5):
+def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=False, offset=0.5):
     result = []
     for layer_config in box_config:
         layer_w = layer_config['layer_width']
@@ -243,4 +218,3 @@ def _create_box_sizes(min_size, max_size, aspect_ratios):
         box_heights.append(min_size / math.sqrt(ar))
 
     return np.array(box_widths), np.array(box_heights)
-

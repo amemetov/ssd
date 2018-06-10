@@ -79,49 +79,17 @@ class PriorBox(Layer):
         - [SSD: Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325)
     """
 
-    def __init__(self, img_size, min_size, max_size=None, aspect_ratios=None,
-                 variance=[0.1], clip=True, offset=0.5,
-                 **kwargs):
+    def __init__(self, prior_boxes, **kwargs):
         super(PriorBox, self).__init__(**kwargs)
-
-        if min_size <= 0:
-            raise ValueError('min_size should be positive')
-
-        if max_size is not None and max_size < min_size:
-            raise ValueError('max_size must be greater than min_size')
-
-        self.img_w, self.img_h = img_size
-        self.min_size = min_size
-        self.max_size = max_size
-        self.aspect_ratios = aspect_ratios
-        self.variance = variance
-        self.clip = clip
-        self.offset = offset
-
-        if K.image_dim_ordering() == 'tf':
-            self.w_axis, self.h_axis = 2, 1
-        else:
-            self.w_axis, self.h_axis = 3, 2
+        self.prior_boxes = prior_boxes
 
     def compute_output_shape(self, input_shape):
         batch_size = input_shape[0]
-        num_priors = len(self.aspect_ratios)
-        layer_w = input_shape[self.w_axis]
-        layer_h = input_shape[self.h_axis]
-        num_boxes = num_priors * layer_w * layer_h
-        num_variances = len(self.variance)
-        return (batch_size, num_boxes, 4 + num_variances)
+        num_boxes = len(self.prior_boxes)
+        return (batch_size, num_boxes, 8)
 
     def call(self, inputs, **kwargs):
-        input_shape = K.int_shape(inputs)
-
-        layer_w, layer_h = input_shape[self.w_axis], input_shape[self.h_axis]
-
-        prior_boxes = doCreatePriorBoxes(self.img_w, self.img_h, layer_w, layer_h,
-                                         self.min_size, self.max_size, self.aspect_ratios,
-                                         self.variance, self.clip, self.offset)
-
-        prior_boxes_tensor = K.variable(prior_boxes)
+        prior_boxes_tensor = K.variable(self.prior_boxes)
         prior_boxes_tensor = K.expand_dims(prior_boxes_tensor, 0)
         prior_boxes_tensor = K.tile(prior_boxes_tensor, [K.shape(inputs)[0], 1, 1])
         return prior_boxes_tensor
