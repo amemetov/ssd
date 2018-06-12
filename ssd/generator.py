@@ -53,7 +53,6 @@ class Generator(object):
 
                     # work with the copy of y
                     y = np.copy(y)
-                    #orig_y_batch.append(np.copy(y))
 
                     # Do data augmentation
                     if do_augment:
