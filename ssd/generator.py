@@ -21,7 +21,7 @@ class Generator(object):
         self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
 
-    def flow(self, img_file_names, batch_size=32, do_augment=True):
+    def flow(self, img_file_names, batch_size=32, do_augment=True, return_debug_info=False):
         num_samples = len(img_file_names)
         while True:
             samples = shuffle(img_file_names)
@@ -32,9 +32,18 @@ class Generator(object):
                 x_batch = []
                 y_batch = []
 
+                # debug info
+                orig_x_batch = []
+                orig_y_batch = []
+                matches_batch = []
+
                 for img_file_name in samples_batch:
                     img_full_path = os.path.join(self.img_dir, img_file_name)
-                    img = imaging.load_img(img_full_path).astype(np.float32)
+                    img = imaging.load_img(img_full_path)
+                    orig_x_batch.append(img)
+
+                    # convert to float
+                    img = img.astype(np.float32)
 
                     if img_file_name not in self.gtb:
                         #print('File {} is not in gtb'.format(img_file_name))
@@ -45,6 +54,7 @@ class Generator(object):
 
                     # work with the copy of y
                     y = np.copy(y)
+                    orig_y_batch.append(np.copy(y))
 
                     # Do data augmentation
                     if do_augment:
@@ -58,7 +68,8 @@ class Generator(object):
                     img = imaging.preprocess_img(img, self.target_img_size)
 
                     # Convert origin GTBs to format expected by NN
-                    y_encoded = self.bbox_codec.encode(y)
+                    y_encoded, assign_result = self.bbox_codec.encode(y)
+                    matches_batch.append(assign_result)
 
                     # skip samples which have no matched PB <-> GTB
                     if len(y_encoded.shape) > 1 and np.sum(y_encoded[:, -8]) == 0:
@@ -67,7 +78,10 @@ class Generator(object):
                     x_batch.append(img)
                     y_batch.append(y_encoded)
 
-                yield np.array(x_batch), np.array(y_batch)
+                if return_debug_info:
+                    yield np.array(x_batch), np.array(y_batch), orig_x_batch, orig_y_batch, matches_batch
+                else:
+                    yield np.array(x_batch), np.array(y_batch)
 
 
 if __name__ == '__main__':

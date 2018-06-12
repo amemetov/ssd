@@ -71,13 +71,16 @@ class BBoxCodec(object):
         # explicitly set that by default no matches between PBs and GTBs
         y_result[:, -8] = 0
 
+        # for each PB idx set assigned GTB idx
+        assign_result = np.full((self.num_priors), -1).astype(np.int)
+
         num_gtb = y_orig.shape[0]
         if num_gtb == 0:
-            return y_result
+            return y_result, assign_result
 
-        self.__encode(y_orig, y_result)
+        self.__encode(y_orig, y_result, assign_result)
 
-        return y_result
+        return y_result, assign_result
 
     def decode(self, y_pred):
         """ Convert Y predicted into bboxes.
@@ -117,24 +120,24 @@ class BBoxCodec(object):
         bboxes[:, :2] = decode_box_center - 0.5 * decode_box_wh
         bboxes[:, 2:4] = decode_box_center + 0.5 * decode_box_wh
 
-        bboxes = np.clip(bboxes, 0, 1)
+        #bboxes = np.clip(bboxes, 0, 1)
 
         return bboxes
 
-    def __encode(self, y_orig, y_result):
+    def __encode(self, y_orig, y_result, assign_result):
         # 2D tensor, rows are  pbs(y_result)'s indices, columns gtb(y_orig)'s indices
         iou = self.__iou_full(y_orig)
 
         # The origin implementation encodes in 2 steps:
 
         # 1. Bipartite matching.
-        self.__match_bipartiate(y_orig, y_result, iou)
+        self.__match_bipartiate(y_orig, y_result, assign_result, iou)
 
         # 2. Get most overlapped for the rest prediction bboxes for MatchType_PER_PREDICTION.
         if self.match_per_prediction:
-            self.__match_per_prediction(y_orig, y_result, iou)
+            self.__match_per_prediction(y_orig, y_result, assign_result, iou)
 
-    def __match_bipartiate(self, y_orig, y_result, iou, gtb_indices=None):
+    def __match_bipartiate(self, y_orig, y_result, assign_result, iou, gtb_indices=None):
         # pb_indices - 1D tensor containing for each GTB indices of most overlapped PBs
 
         if gtb_indices is None:
@@ -151,7 +154,7 @@ class BBoxCodec(object):
 
         unique_pb_indices = np.unique(pb_indices)
         if pb_indices.shape[0] == unique_pb_indices.shape[0]:
-            self.__assign_boxes(y_orig, y_result, gtb_indices, pb_indices, iou)
+            self.__assign_boxes(y_orig, y_result, assign_result, gtb_indices, pb_indices, iou)
         else:
             # solve possible duplications in pb_indices
             # start using from the most overlapped pairs
@@ -165,13 +168,13 @@ class BBoxCodec(object):
             max_pb_indices = ordered_pb_indices[unique_indices]
 
             # assign most overlapped pairs
-            self.__assign_boxes(y_orig, y_result, max_gtb_indices, max_pb_indices, iou)
+            self.__assign_boxes(y_orig, y_result, assign_result, max_gtb_indices, max_pb_indices, iou)
 
             # process remain GTBs
             remain_gtb_indices = np.setdiff1d(ordered_gtb_indices, max_gtb_indices, assume_unique=True)
-            self.__match_bipartiate(y_orig, y_result, iou, remain_gtb_indices)
+            self.__match_bipartiate(y_orig, y_result, assign_result, iou, remain_gtb_indices)
 
-    def __match_per_prediction(self, y_orig, y_result, iou):
+    def __match_per_prediction(self, y_orig, y_result, assign_result, iou):
         # 1D tensor which contains for each PriorBox indices of most overlapped GTB
         max_gtb_indices = np.argmax(iou, axis=1)
         max_iou = iou[np.arange(iou.shape[0]), max_gtb_indices]
@@ -179,22 +182,32 @@ class BBoxCodec(object):
         pb_indices = np.arange(iou.shape[0])[threshold_mask]
         gtb_indices = max_gtb_indices[threshold_mask]
 
-        self.__assign_boxes(y_orig, y_result, gtb_indices, pb_indices, iou)
+        self.__assign_boxes(y_orig, y_result, assign_result, gtb_indices, pb_indices, iou)
 
-    def __assign_boxes(self, y_orig, y_result, gtb_indices, pb_indices, iou_full):
+    def __assign_boxes(self, y_orig, y_result, assign_result, gtb_indices, pb_indices, iou_full):
         assert len(gtb_indices) == len(pb_indices)
         if len(gtb_indices) == 0:
             return
 
-            # store overlap mask before resetting
+        # store overlap mask before resetting
         overlap_mask = iou_full[pb_indices, gtb_indices] > 0
+        #overlap_mask = iou_full[pb_indices, gtb_indices] > (self.iou_threshold / 2)
 
         # mark PBs as assigned to GTBs
         iou_full[pb_indices, :] = -1
 
+        # print('------------------------------')
+        # print('pb_indices: {}'.format(pb_indices))
+        # print('gtb_indices: {}'.format(gtb_indices))
+
         # use only pairs which have overlap
         pb_indices = pb_indices[overlap_mask]
         gtb_indices = gtb_indices[overlap_mask]
+
+        # store matched indices
+        # print('pb_indices: {}'.format(pb_indices))
+        # print('gtb_indices: {}'.format(gtb_indices))
+        assign_result[pb_indices] = gtb_indices
 
         # get GTBs
         gt_boxes = y_orig[gtb_indices]

@@ -8,6 +8,7 @@ from keras.models import load_model
 from .data import PascalVoc2012
 from .imaging import load_img, preprocess_img
 from .layers import L2Normalize, PriorBox
+from .losses import SsdLoss
 
 # use show_bboxes instead
 # def draw_boxes(img, prior_boxes, log=False):
@@ -31,6 +32,12 @@ from .layers import L2Normalize, PriorBox
 #
 #     plt.figure(figsize=(24, 12))
 #     plt.imshow(img)
+
+CLASSES = np.array(PascalVoc2012.CLASSES)
+
+def gtb_label(gtb):
+    one_hot = gtb[4:]
+    return CLASSES[one_hot == 1]
 
 """
 Use this method to show original GTBs with categories.
@@ -125,7 +132,7 @@ def show_bboxes(images, bboxes, cols=1, figsize=(12, 8)):
             boxes = np.expand_dims(boxes, 0)#np.array([boxes])
 
         img_w, img_h = img.shape[1], img.shape[0]
-        colors = plt.cm.hsv(np.linspace(0, 1, len(boxes))).tolist()
+        colors = plt.cm.hsv(np.linspace(0, 1, len(boxes) + 1)).tolist()
 
         ax.imshow(img)
 
@@ -154,6 +161,8 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
 
     category_colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
 
+    figsize=(figsize[0], figsize[1]*rows)
+    #print('figsize: {}'.format(figsize))
     fig, axes = plt.subplots(rows, cols, figsize=figsize)
     if nb_images == 1:
         axes = np.array([axes])
@@ -163,7 +172,7 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
             img_preds = np.expand_dims(img_preds, 0)#np.array([img_preds])
 
         img_w, img_h = img.shape[1], img.shape[0]
-        bbox_colors = plt.cm.hsv(np.linspace(0, 1, len(img_preds))).tolist()
+        bbox_colors = plt.cm.hsv(np.linspace(0, 1, len(img_preds) + 1)).tolist()
 
         ax.imshow(img)
 
@@ -231,6 +240,48 @@ def show_detections(img, predictions, num_classes, figsize=(12, 8), ax=None, fon
         patch = ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
         text = ax.text(xmin, ymin, label, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
 
+
+"""
+How to use:
+bbox_codec = BBoxCodec(prior_boxes, num_classes, iou_threshold=0.5, encode_variances=True, match_per_prediction=True)
+gen = Generator(gtb, img_dir, target_img_size, DataAugmenter(), bbox_codec)
+test_generator = gen.flow(train_samples, batch_size=8, do_augment=False, return_debug_info=True)
+x, y, orig_x, orig_y, matches = next(test_generator)
+show_matches(orig_x, orig_y, matches, prior_boxes, cols=2, figsize=(12,6))
+"""
+def show_matches(images, gtbs, matches, prior_boxes, cols=1, figsize=(12, 8), font_size=12):
+    nb_images = len(images)
+    rows = math.ceil(nb_images / cols)
+
+    figsize = (figsize[0], figsize[1] * rows)
+    fig, axes = plt.subplots(rows, cols, figsize=figsize)
+    if nb_images == 1:
+        axes = np.array([axes])
+
+    for img, image_gtbs, image_matches, (i, ax) in zip(images, gtbs, matches, enumerate(axes.flat)):
+        img_w, img_h = img.shape[1], img.shape[0]
+        ax.imshow(img)
+
+        # color per gtb
+        colors = plt.cm.hsv(np.linspace(0, 1, len(image_gtbs) + 1)).tolist()
+
+        for gtb_idx, gtb in enumerate(image_gtbs):
+            color = colors[gtb_idx]
+
+            xmin, ymin, xmax, ymax = int(gtb[0] * img_w), int(gtb[1] * img_h), int(gtb[2] * img_w), int(gtb[3] * img_h)
+            coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+            ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=3))
+            ax.text(xmin, ymin, gtb_label(gtb), verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
+
+            matched_pbs = prior_boxes[image_matches == gtb_idx]
+            for pb in matched_pbs:
+                xmin, ymin, xmax, ymax = int(pb[0] * img_w), int(pb[1] * img_h), int(pb[2] * img_w), int(pb[3] * img_h)
+                coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+                ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=1))
+
+    plt.tight_layout()
+
+
 """
 Prediction utilities
 """
@@ -266,8 +317,9 @@ def freeze_model(model, freeze_start_layer_name):
             trainable = True
         layer.trainable = trainable
 
-def load_ssd_model(filepath):
-    return load_model(filepath, custom_objects={'L2Normalize': L2Normalize, 'PriorBox': PriorBox})
+def load_ssd_model(filepath, num_classes, hard_neg_pos_ratio):
+    return load_model(filepath, custom_objects={'L2Normalize': L2Normalize, 'PriorBox': PriorBox,
+                                                'loss': SsdLoss(num_classes=num_classes, hard_neg_pos_ratio=hard_neg_pos_ratio).loss})
 
 """
 Plot train/valid loss curves and save plot to the file ./loss_curve.png.

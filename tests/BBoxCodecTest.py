@@ -43,7 +43,7 @@ class BBoxCodecTest(unittest.TestCase):
         y_orig = np.array([[0, 0.25, 1, 0.75, 1, 0], [0.25, 0, 0.75, 1, 0, 1]])
 
         # (num_priors, 4 + (1 + num_classes) + 4 + 4),
-        y_encoded_actual = bbox_codec.encode(y_orig)
+        y_encoded_actual, _ = bbox_codec.encode(y_orig)
 
         # (num_priors, [bg_prob, class1_prob, class2_prob])
         y_expected_assigned_classes = np.array([
@@ -67,6 +67,6 @@ class BBoxCodecTest(unittest.TestCase):
         y_orig = np.array([[0, 0.25, 1, 0.75, 1, 0], [0.25, 0, 0.75, 1, 0, 1]])
 
         start_time = time.perf_counter()
-        y_encoded_actual = bbox_codec.encode(y_orig)
+        y_encoded_actual, _ = bbox_codec.encode(y_orig)
         elapsed_time = time.perf_counter() - start_time
         print("Spent time: {}".format(elapsed_time))
