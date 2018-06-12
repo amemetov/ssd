@@ -21,10 +21,13 @@ class Generator(object):
         self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
 
-    def flow(self, img_file_names, batch_size=32, do_augment=True, return_debug_info=False):
+    def flow(self, img_file_names, batch_size=32, do_augment=True, do_shuffle=True, return_debug_info=False):
         num_samples = len(img_file_names)
         while True:
-            samples = shuffle(img_file_names)
+            if do_shuffle:
+                samples = shuffle(img_file_names)
+            else:
+                samples = img_file_names
 
             for offset in range(0, num_samples, batch_size):
                 samples_batch = samples[offset:offset + batch_size]
@@ -39,11 +42,7 @@ class Generator(object):
 
                 for img_file_name in samples_batch:
                     img_full_path = os.path.join(self.img_dir, img_file_name)
-                    img = imaging.load_img(img_full_path)
-                    orig_x_batch.append(img)
-
-                    # convert to float
-                    img = img.astype(np.float32)
+                    img = imaging.load_img(img_full_path).astype(np.float32)
 
                     if img_file_name not in self.gtb:
                         #print('File {} is not in gtb'.format(img_file_name))
@@ -54,7 +53,7 @@ class Generator(object):
 
                     # work with the copy of y
                     y = np.copy(y)
-                    orig_y_batch.append(np.copy(y))
+                    #orig_y_batch.append(np.copy(y))
 
                     # Do data augmentation
                     if do_augment:
@@ -63,6 +62,9 @@ class Generator(object):
                     # skip samples which have no GTB
                     if y.shape[0] == 0:
                         continue
+
+                    orig_x_batch.append(img.astype(np.uint8))
+                    orig_y_batch.append(np.copy(y))
 
                     # Preprocess image
                     img = imaging.preprocess_img(img, self.target_img_size)
