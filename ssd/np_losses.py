@@ -7,7 +7,7 @@ def loss(y_true, y_pred, num_classes, hard_neg_pos_ratio=3.0):
     num_boxes = np.shape(y_true)[1]
 
     # (batch_size, num_boxes)
-    y_matching_mask = y_true[:, :, -8]
+    y_matching_mask = np.where(y_true[:, :, 4] == 1.0, np.zeros_like(y_true[:, :, 4]), np.ones_like(y_true[:, :, 4]))
 
     # tensor of the shape (batch_size)
     # containing # of matching boxes for each image (in the batch)
@@ -44,16 +44,14 @@ def _conf_loss(y_true, y_pred, y_matching_mask, num_pos, num_boxes, num_classes,
     full_conf_loss = _softmax_loss(y_true[:, :, conf_start_idx:conf_end_idx], y_pred[:, :, conf_start_idx:conf_end_idx])
 
     pos_indices_mask = y_matching_mask
-    neg_indices_mask = _mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask,
+    num_neg, neg_indices_mask = _mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask,
                                     num_pos, num_boxes, hard_neg_pos_ratio)
     conf_pos_loss = np.sum(pos_indices_mask * full_conf_loss, axis=1)
     conf_neg_loss = np.sum(neg_indices_mask * full_conf_loss, axis=1)
 
-    num_neg = np.sum(neg_indices_mask, axis=1).astype(np.int)
-
     # average
-    conf_pos_loss = conf_pos_loss / num_pos
-    conf_neg_loss = conf_neg_loss / num_neg
+    conf_pos_loss = np.where(num_pos == 0, 0, conf_pos_loss / num_pos)
+    conf_neg_loss = np.where(num_neg == 0, 0, conf_neg_loss / num_neg)
 
     print('conf_pos_loss: {}'.format(conf_pos_loss))
     print('conf_neg_loss: {}'.format(conf_neg_loss))
@@ -67,8 +65,8 @@ def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask,
     # tensor of the shape (batch_size)
     # containing # of not matching boxes for each image (in the batch)
     # clipped above using hard_neg_pos_ratio
-    num_neg = (num_boxes - num_pos)
-    num_neg = (np.minimum(hard_neg_pos_ratio * num_pos, num_neg)).astype(np.int)
+    max_num_neg = (num_boxes - num_pos)
+    num_neg = (np.minimum(hard_neg_pos_ratio * num_pos, max_num_neg)).astype(np.int)
     print('num_neg: {}'.format(num_neg))
 
     #(batch_size, num_boxes)
@@ -82,9 +80,11 @@ def _mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask,
     # for each batch
     num_batch = np.shape(y_true)[0]
     for b in range(num_batch):
-        top_indices_mask[b][top_indices[b, -num_neg[b]:]] = 1
+        if num_neg[b] > 0:
+            on_indices = top_indices[b, -num_neg[b]:]
+            top_indices_mask[b][on_indices] = 1
 
-    return top_indices_mask
+    return num_neg, top_indices_mask
 
 def _classes_indices(num_classes):
     # define conf indices including background
@@ -103,6 +103,8 @@ def _smooth_l1_loss(y_true, y_pred):
 
 def _softmax_loss(y_true, y_pred):
     # prevent division by zero
-    y_pred = np.maximum(y_pred, 1e-15)
+    eps = 1e-15
+    y_pred = np.clip(y_pred, eps, 1. - eps)
+    #y_pred = np.maximum(y_pred, 1e-15)
     log_loss = -np.sum(y_true * np.log(y_pred), axis=-1)
     return log_loss

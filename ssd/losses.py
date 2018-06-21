@@ -16,13 +16,13 @@ def smooth_l1_loss(y_true, y_pred):
     return K.sum(l1_loss, -1)
 
 def softmax_loss(y_true, y_pred):
-    return losses.categorical_crossentropy(y_true, y_pred)
+    #return losses.categorical_crossentropy(y_true, y_pred)
 
     # prevent division by zero
-    # eps = 1e-15
-    # y_pred = K.clip(y_pred, eps, 1. - eps)
-    # log_loss = -K.sum(y_true * K.log(y_pred), axis=-1)
-    # return log_loss
+    eps = 1e-15
+    y_pred = K.clip(y_pred, eps, 1. - eps)
+    log_loss = -K.sum(y_true * K.log(y_pred), axis=-1)
+    return log_loss
 
 
 class SsdLoss(object):
@@ -41,9 +41,7 @@ class SsdLoss(object):
 
             y_true[:, :, 0:4] - encoded GTB offsets in bbox locations (cx, cy, w, h) - see BBoxCodec.encode.
             y_true[:, :, 4:4+num_classes] - ground truth one-hot-encoding classes
-            y_true[:, :, -8] - {0, 1} is the indicator for matching the current PriorBox to the GTB,
-            not all row has GTB, often it is the background
-            y_true[:, :, -7:] - 0 - is necessary only to have shape as y_pred's shape
+            y_true[:, :, -8:] - 0 - is necessary only to have shape as y_pred's shape
 
             y_pred: Predicted Boxes
             tensor of shape (batch_size, num_boxes, 4 + num_classes + 4 + 4),
@@ -62,7 +60,7 @@ class SsdLoss(object):
 
         # PriorBox-GTB matching indicator - xij in the SSD paper
         # tensor of the shape (batch_size, num_boxes) containing {1, 0}
-        y_matching_mask = y_true[:, :, -8]
+        y_matching_mask = tf.where(tf.equal(y_true[:, :, 4], 1.0), tf.zeros_like(y_true[:, :, 4]), tf.ones_like(y_true[:, :, 4]))
 
         # tensor of the shape (batch_size)
         # containing # of matching boxes for each image (in the batch)
@@ -101,20 +99,16 @@ class SsdLoss(object):
         full_conf_loss = softmax_loss(y_true[:, :, conf_start_idx:conf_end_idx], y_pred[:, :, conf_start_idx:conf_end_idx])
 
         pos_indices_mask = y_matching_mask
-        neg_indices_mask = self._mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask, num_pos, num_boxes)
+        num_neg, neg_indices_mask = self._mine_hard_examples(full_conf_loss, y_true, y_pred, y_matching_mask, num_pos, num_boxes)
 
         conf_pos_loss = K.sum(pos_indices_mask * full_conf_loss, axis=1)
         conf_neg_loss = K.sum(neg_indices_mask * full_conf_loss, axis=1)
 
-        num_neg = K.cast(K.sum(neg_indices_mask, axis=1), dtype='int32')
-
         # average
-        conf_pos_loss = conf_pos_loss / K.cast(num_pos, dtype='float32')
-        conf_neg_loss = conf_neg_loss / K.cast(num_neg, dtype='float32')
-
         # process zero-division
-        conf_pos_loss = tf.where(tf.equal(num_pos, 0), tf.zeros_like(conf_pos_loss), conf_pos_loss)
-        conf_neg_loss = tf.where(tf.equal(num_neg, 0), tf.zeros_like(conf_neg_loss), conf_neg_loss)
+        conf_pos_loss = tf.where(tf.equal(num_pos, 0), tf.zeros_like(conf_pos_loss), conf_pos_loss / K.cast(num_pos, dtype='float32'))
+        conf_neg_loss = tf.where(tf.equal(num_neg, 0), tf.zeros_like(conf_neg_loss), conf_neg_loss / K.cast(num_neg, dtype='float32'))
+
         return conf_pos_loss + conf_neg_loss
 
 
@@ -124,12 +118,11 @@ class SsdLoss(object):
         # tensor of the shape (batch_size)
         # containing # of not matching boxes for each image (in the batch)
         # clipped above using hard_neg_pos_ratio
-        num_neg = K.minimum(self.hard_neg_pos_ratio * num_pos, num_boxes - num_pos)
-        num_neg = K.maximum(num_neg, 1)
-        #print('num_neg: {}'.format(num_neg))
+        max_num_neg = (num_boxes - num_pos)
+        num_neg = K.minimum(self.hard_neg_pos_ratio * num_pos, max_num_neg)
 
         # (batch_size, num_boxes)
-        all_neg_indices = K.cast(y_matching_mask == 0, dtype='float32')
+        all_neg_indices = K.cast(K.equal(y_matching_mask, 0), dtype='float32')
         full_conf_neg_loss = full_conf_loss * all_neg_indices
 
         num_batch = K.shape(y_true)[0]
@@ -140,13 +133,13 @@ class SsdLoss(object):
         cond = lambda b, _: tf.less(b, num_batch)
         def body(b, top_indices_mask):
             _, top_indices = tf.nn.top_k(full_conf_neg_loss[b], k=K.cast(num_neg[b], 'int32'))
-            on_indices = top_indices[-num_neg[b]:]
-            updates = tf.ones_like(on_indices, dtype='float32')
+            on_indices = tf.reshape(top_indices, (num_neg[b], 1))
+            updates = tf.ones_like(top_indices, dtype='float32')
             batch_mask = tf.scatter_nd(on_indices, updates, shape)
             top_indices_mask = top_indices_mask.write(b, batch_mask)
             return [tf.add(b, 1), top_indices_mask]
 
         _, top_indices_mask = tf.while_loop(cond, body, [0, top_indices_mask])
-        return top_indices_mask.stack()
+        return num_neg, top_indices_mask.stack()
 
 
