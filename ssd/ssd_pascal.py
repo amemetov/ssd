@@ -68,7 +68,7 @@ def _gen_feature_layers_config(layers_config, img_w, img_h, variance=default_pri
 
 
 def SSD300(layers_config, base_net_name='vgg16', base_net_weights='imagenet', freeze_layers=None,
-           use_bn=False, use_dropout=False):
+           use_bn=False, use_dropout=False, num_classes=21):
 
     if base_net_name not in {'vgg16', None}:
         raise ValueError('The `base_net_name` argument should be either '
@@ -85,8 +85,6 @@ def SSD300(layers_config, base_net_name='vgg16', base_net_weights='imagenet', fr
                            include_top=False, weights=base_net_weights)
 
     addExtraLayers(ssd_net, base_net_model, use_bn=use_bn, use_dropout=use_dropout)
-
-    num_classes = 21
 
     CreateMultiBoxHead(ssd_net, num_classes=num_classes, layers_config=layers_config,
                        kernel_size=3, pad='same', use_bn=use_bn)
@@ -198,7 +196,6 @@ def CreateMultiBoxHead(net, num_classes, layers_config,
         net[priorbox_name] = PriorBox(name=priorbox_name, prior_boxes=pbs)(net[layer])
         priorbox_layers.append(net[priorbox_name])
 
-
     # Concatenate priorbox, loc, and conf layers.
     net['mbox_loc'] = concatenate(loc_layers, axis=1, name='mbox_loc')
     net['mbox_conf'] = concatenate(conf_layers, axis=1, name='mbox_conf')
@@ -212,16 +209,20 @@ def CreateMultiBoxHead(net, num_classes, layers_config,
 def createPredictionsLayer(net, num_classes):
     # Reshape loc
     num_boxes = -1#K.int_shape(net['mbox_priorbox'])[1]
-    net['mbox_loc_reshape'] = Reshape(target_shape=(num_boxes, 4), name='mbox_loc_reshape')(net['mbox_loc'])
+    net['mbox_loc_final'] = Reshape(target_shape=(num_boxes, 4), name='mbox_loc_reshape')(net['mbox_loc'])
 
     # Reshape conf
     net['mbox_conf_reshape'] = Reshape(target_shape=(num_boxes, num_classes), name='mbox_conf_reshape')(net['mbox_conf'])
     # Add softmax activation for conf
-    net['mbox_conf_softmax'] = Activation(activation='softmax', name='mbox_conf_softmax')(net['mbox_conf_reshape'])
+    net['mbox_conf_final'] = Activation(activation='softmax', name='mbox_conf_softmax')(net['mbox_conf_reshape'])
+
+    # Reshape pb
+    #net['mbox_priorbox_final'] = Reshape(target_shape=(num_boxes, 8), name='mbox_priorbox_reshape')(net['mbox_priorbox'])
+    net['mbox_priorbox_final'] = net['mbox_priorbox']
 
     # we have layers with shapes: [(None, 8732, 4), (None, 8732, 21), (None, 8732, 8)]
     # concatenate them at axis=2
-    net['predictions'] = concatenate([net['mbox_loc_reshape'], net['mbox_conf_softmax'], net['mbox_priorbox']], axis=2, name='predictions')
+    net['predictions'] = concatenate([net['mbox_loc_final'], net['mbox_conf_final'], net['mbox_priorbox_final']], axis=2, name='predictions')
 
     return net['predictions']
 
