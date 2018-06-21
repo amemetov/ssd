@@ -72,8 +72,8 @@ class Generator(object):
                     y_encoded, assign_result = self.bbox_codec.encode(y)
                     matches_batch.append(assign_result)
 
-                    # skip samples which have no matched PB <-> GTB
-                    if len(y_encoded.shape) > 1 and np.sum(y_encoded[:, -8]) == 0:
+                    # skip samples which have no matched PB <-> GTB (i.e. all PBs are backgrounds)
+                    if len(y_encoded.shape) > 1 and np.sum(y_encoded[:, 4]) == self.bbox_codec.num_priors:
                         continue
 
                     x_batch.append(img)

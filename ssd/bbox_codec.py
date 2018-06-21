@@ -51,9 +51,7 @@ class BBoxCodec(object):
             y_result: 2D tensor of shape (num_priors, 4 + num_classes + 4 + 4),
                 y_result[:, 0:4] - encoded GTB offsets in bbox locations (cx, cy, w, h)
                 y_result[:, 4:4+num_classes] - ground truth one-hot-encoding classes with background
-                y_result[:, -8] - {0, 1} is the indicator for matching the current PriorBox to the GTB,
-                not all row has GTB, often it is the background
-                y_result[:, -7:] - 0 - is necessary only to have shape as y_pred's shape
+                y_result[:, -8:] - 0 - is necessary only to have shape as y_pred's shape
         """
 
         # filter out empty boxes
@@ -68,8 +66,6 @@ class BBoxCodec(object):
 
         # by default assume that all boxes are background - set probability of background = 1
         y_result[:, 4] = 1.0
-        # explicitly set that by default no matches between PBs and GTBs
-        y_result[:, -8] = 0
 
         # for each PB idx set assigned GTB idx
         assign_result = np.full((self.num_priors), -1).astype(np.int)
@@ -236,9 +232,6 @@ class BBoxCodec(object):
         # copy probabilities of categories
         y_result[pb_indices, 5:-8] = gt_boxes[:, 4:]
 
-        # set indicator to point that this PBs matched to GTBs - is used by SsdLoss
-        y_result[pb_indices, -8] = 1
-
     def __iou_full(self, gtbs):
         # find left-top and right-bottom of intersection
         left = np.maximum(gtbs[:, 0], self.pb_broadcasted[:, :, 0])
@@ -270,7 +263,10 @@ class LargestObjClassCodec(object):
         # keep only one-hot-encoded classes + background at the beginning
         y_encoded = np.concatenate(([0], y_encoded[4:]))
 
-        return y_encoded
+        # for each PB idx set assigned GTB idx
+        assign_result = None  # np.full((self.num_priors), -1).astype(np.int)
+
+        return y_encoded, assign_result
 
 class LargestObjBoxCodec(object):
     def __init__(self, code_type='center_size'):
@@ -295,7 +291,10 @@ class LargestObjBoxCodec(object):
         # keep only bbox
         y_encoded = bbox
 
-        return y_encoded
+        # for each PB idx set assigned GTB idx
+        assign_result = None  # np.full((self.num_priors), -1).astype(np.int)
+
+        return y_encoded, assign_result
 
     def decode(self, y_pred):
         bbox = y_pred#[0:4]
@@ -330,7 +329,11 @@ class LargestObjBoxAndClassCodec(object):
             y_encoded[2:4] = bbox_wh
 
         y_encoded = np.concatenate((y_encoded[:4], [0], y_encoded[4:]))
-        return y_encoded
+
+        # for each PB idx set assigned GTB idx
+        assign_result = None  # np.full((self.num_priors), -1).astype(np.int)
+
+        return y_encoded, assign_result
 
     def decode(self, y_pred):
         if self.code_type == 'center_size':
