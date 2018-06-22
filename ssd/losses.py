@@ -133,9 +133,13 @@ class SsdLoss(object):
         cond = lambda b, _: tf.less(b, num_batch)
         def body(b, top_indices_mask):
             _, top_indices = tf.nn.top_k(full_conf_neg_loss[b], k=K.cast(num_neg[b], 'int32'))
+            # reshape, otherwise tf.scatter_nd sets correct data only for the last item
             on_indices = tf.reshape(top_indices, (num_neg[b], 1))
+            # prepare ON values for top_indices
             updates = tf.ones_like(top_indices, dtype='float32')
+            # create result where only top_indices have 1s, others - 0
             batch_mask = tf.scatter_nd(on_indices, updates, shape)
+            # put in the result array
             top_indices_mask = top_indices_mask.write(b, batch_mask)
             return [tf.add(b, 1), top_indices_mask]
 

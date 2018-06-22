@@ -128,7 +128,7 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=False, offs
         max_size = layer_config['max_size']
         aspect_ratios = layer_config['aspect_ratios']
 
-        prior_boxes = doCreatePriorBoxes(img_w, img_h, layer_w, layer_h,
+        prior_boxes = create_prior_boxes(img_w, img_h, layer_w, layer_h,
                                          min_size, max_size, aspect_ratios,
                                          variance, clip, offset)
 
@@ -137,7 +137,7 @@ def create_prior_boxes_vect(img_w, img_h, box_config, variance, clip=False, offs
     result = np.concatenate(result, axis=0)
     return result
 
-def doCreatePriorBoxes(img_w, img_h, layer_w, layer_h, min_size, max_size, aspect_ratios,
+def create_prior_boxes(img_w, img_h, layer_w, layer_h, min_size, max_size, aspect_ratios,
                        variance, clip, offset):
     num_priors = len(aspect_ratios)
 

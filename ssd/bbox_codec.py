@@ -116,8 +116,6 @@ class BBoxCodec(object):
         bboxes[:, :2] = decode_box_center - 0.5 * decode_box_wh
         bboxes[:, 2:4] = decode_box_center + 0.5 * decode_box_wh
 
-        #bboxes = np.clip(bboxes, 0, 1)
-
         return bboxes
 
     def __encode(self, y_orig, y_result, assign_result):
