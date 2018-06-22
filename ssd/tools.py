@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import cv2
 import matplotlib.pyplot as plt
 
 from keras.models import load_model
@@ -9,29 +8,6 @@ from .data import PascalVoc2012
 from .imaging import load_img, preprocess_img
 from .layers import L2Normalize, PriorBox
 from .losses import SsdLoss
-
-# use show_bboxes instead
-# def draw_boxes(img, prior_boxes, log=False):
-#     if log:
-#         print('Drawing {} boxes'.format(len(prior_boxes)))
-#
-#     img = np.copy(img)
-#     img_w, img_h = img.shape[1], img.shape[0]
-#
-#     colors = plt.cm.hsv(np.linspace(0, 1, len(prior_boxes))).tolist()
-#
-#     for box, idx in zip(prior_boxes, range(0, len(prior_boxes))):
-#         xmin = int(box[0] * img_w)
-#         ymin = int(box[1] * img_h)
-#         xmax = int(box[2] * img_w)
-#         ymax = int(box[3] * img_h)
-#
-#         cv2.rectangle(img, (xmin, ymin), (xmax, ymax), colors[idx], 1)
-#         if log:
-#             print('({},{}), ({}, {})'.format(xmin, ymin, xmax, ymax))
-#
-#     plt.figure(figsize=(24, 12))
-#     plt.imshow(img)
 
 CLASSES = np.array(PascalVoc2012.CLASSES)
 
@@ -105,7 +81,7 @@ def __show_categories(ax, categories, confs, colors, font_size, x=0, y=0):
     text = ''
     for cat, conf in zip(categories, confs):
         label_idx = cat
-        label = PascalVoc2012.CLASSES[label_idx] + ': ' + "{0:.2f}".format(conf)
+        label = CLASSES[label_idx] + ': ' + "{0:.2f}".format(conf)
         color = colors[label_idx]
         prefix = '' if text == '' else '\n'
         text = prefix + text + label
@@ -225,15 +201,12 @@ def show_detections(img, predictions, num_classes, figsize=(12, 8), ax=None, fon
     ax.set_xticks(np.linspace(0, img_w, 8))
     ax.set_yticks(np.linspace(0, img_h, 8))
     ax.grid()
-    #ax.set_yticklabels([])
-    #ax.set_xticklabels([])
 
-    #
     for prediction in predictions:
         # [class, conf, xmin, ymin, xmax, ymax]
         xmin, ymin, xmax, ymax = int(prediction[2]), int(prediction[3]), int(prediction[4]), int(prediction[5])
         label_idx = int(prediction[0] - 1)
-        label = PascalVoc2012.CLASSES[label_idx] + ': ' + "{0:.2f}".format(prediction[1])
+        label = CLASSES[label_idx] + ': ' + "{0:.2f}".format(prediction[1])
         color = colors[label_idx]
         coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
 
