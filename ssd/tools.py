@@ -188,30 +188,43 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
 
 """
 Use this method to show the result built by Detection.detect_bboxes
+How to use:
+detector = Detection(num_classes, target_img_size, bbox_codec, out_nms_top_k=5, out_conf_threshold=0.5)
+imgs, predictions = detector.detect_bboxes(model, test_images)
+show_detections(test_images, predictions, cols=3, figsize=(12, 4))
 """
-def show_detections(img, predictions, num_classes, figsize=(12, 8), ax=None, font_size=12):
-    if not ax:
-        fig, ax = plt.subplots(figsize=figsize)
+def show_detections(images, predictions, cols, figsize=(12, 8), font_size=12):
+    nb_images = len(images)
+    rows = math.ceil(nb_images / cols)
 
-    colors = plt.cm.hsv(np.linspace(0, 1, num_classes)).tolist()
+    figsize = (figsize[0], figsize[1] * rows)
+    # print('figsize: {}'.format(figsize))
+    fig, axes = plt.subplots(rows, cols, figsize=figsize)
+    if nb_images == 1:
+        axes = np.array([axes])
 
-    img_w, img_h = img.shape[1], img.shape[0]
+    for img, img_preds, (i, ax) in zip(images, predictions, enumerate(axes.flat)):
+        if img_preds.ndim == 1:
+            img_preds = np.expand_dims(img_preds, 0)  # np.array([img_preds])
 
-    ax.imshow(img)
-    ax.set_xticks(np.linspace(0, img_w, 8))
-    ax.set_yticks(np.linspace(0, img_h, 8))
-    ax.grid()
+        img_w, img_h = img.shape[1], img.shape[0]
+        bbox_colors = plt.cm.hsv(np.linspace(0, 1, len(img_preds) + 1)).tolist()
 
-    for prediction in predictions:
-        # [class, conf, xmin, ymin, xmax, ymax]
-        xmin, ymin, xmax, ymax = int(prediction[2]), int(prediction[3]), int(prediction[4]), int(prediction[5])
-        label_idx = int(prediction[0] - 1)
-        label = CLASSES[label_idx] + ': ' + "{0:.2f}".format(prediction[1])
-        color = colors[label_idx]
-        coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+        ax.imshow(img)
+        #ax.set_xticks(np.linspace(0, img_w, 8))
+        #ax.set_yticks(np.linspace(0, img_h, 8))
+        #ax.grid()
 
-        patch = ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
-        text = ax.text(xmin, ymin, label, verticalalignment='top', fontsize=font_size, bbox={'facecolor': color, 'alpha': 0.5})
+        for pred, bbox_color in zip(img_preds, bbox_colors):
+            # [class, conf, xmin, ymin, xmax, ymax]
+            xmin, ymin, xmax, ymax = int(pred[2]), int(pred[3]), int(pred[4]), int(pred[5])
+            label_idx = int(pred[0] - 1)
+            label = CLASSES[label_idx] + ': ' + "{0:.2f}".format(pred[1])
+            coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+
+            patch = ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=bbox_color, linewidth=2))
+            text = ax.text(xmin, ymin, label, verticalalignment='top',
+                           fontsize=font_size, bbox={'facecolor': bbox_color, 'alpha': 0.5})
 
 
 """
