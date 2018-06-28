@@ -21,15 +21,19 @@ class PascalVoc2012(object):
         print("Found '{}' xml files in dir '{}'".format(len(xml_files), self.annotations_dir))
 
         for xml_file in xml_files:
-            tree = ElementTree.parse(self.annotations_dir + xml_file)
-            root = tree.getroot()
+            difficulties = []
             bnd_boxes = []
             one_hot_classes = []
+
+            tree = ElementTree.parse(self.annotations_dir + xml_file)
+            root = tree.getroot()
             size_tree = root.find('size')
             width = float(size_tree.find('width').text)
             height = float(size_tree.find('height').text)
             for obj_tree in root.findall('object'):
                 obj_name = obj_tree.find('name').text
+                is_difficult = int(obj_tree.find('difficult').text)
+
                 if self._is_valid_class(obj_name):
                     bb_tree = obj_tree.find('bndbox')
                     # calc positions relative to the size of the image
@@ -39,22 +43,25 @@ class PascalVoc2012(object):
                     ymax = float(bb_tree.find('ymax').text) / height
 
                     if xmax > xmin and ymax > ymin:
+                        difficulties.append([is_difficult])
                         bnd_boxes.append([xmin, ymin, xmax, ymax])
                         one_hot_class = self._to_one_hot(obj_name)
                         one_hot_classes.append(one_hot_class)
 
+
             file_name = root.find('filename').text
             if len(bnd_boxes) > 0:
+                difficulties = np.asarray(difficulties)
                 bnd_boxes = np.asarray(bnd_boxes)
                 one_hot_classes = np.asarray(one_hot_classes)
-                image_data = np.hstack((bnd_boxes, one_hot_classes))
+                image_data = np.hstack((bnd_boxes, one_hot_classes, difficulties))
                 data[file_name] = image_data
         return data
 
     CLASSES = [
         'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
         'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse',
-        'motorbike', 'person', 'potted plant', 'sheep', 'sofa', 'train', 'tvmonitor'
+        'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
     ]
 
     def _is_valid_class(self, name):
@@ -68,7 +75,8 @@ class PascalVoc2012(object):
         one_hot_vector[ind] = 1
         return one_hot_vector
 
-# python data.py '../datasets/voc2012/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012.p'
+# python ssd/data.py '../datasets/voc/VOCtrainval_06-Nov-2007/Annotations/' 'data/pascal_voc_2007.p'
+# python ssd/data.py '../datasets/voc/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012.p'
 if __name__ == '__main__':
     import argparse
     import pickle
