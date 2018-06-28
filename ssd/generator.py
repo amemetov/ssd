@@ -50,6 +50,8 @@ class Generator(object):
 
                     # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
+                    # get rid of the last 'is_difficult' column
+                    y = y[:-1]
 
                     # work with the copy of y
                     y = np.copy(y)
