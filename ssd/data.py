@@ -1,6 +1,61 @@
 import os
 import numpy as np
 from xml.etree import ElementTree
+import h5py
+
+from . import imaging
+
+class ImgRegistry(object):
+    def get(self, img_name):
+        raise NotImplementedError()
+
+class FsImgRegistry(ImgRegistry):
+    def __init__(self, img_dir):
+        self.img_dir = img_dir
+
+    def get(self, img_name):
+        img_full_path = os.path.join(self.img_dir, img_name)
+        img = imaging.load_img(img_full_path).astype(np.float32)
+        return img
+
+class Hdf5ImgRegistry(ImgRegistry):
+    def __init__(self, hdf5_path):
+        self.hdf5_path = hdf5_path
+        self.hdf5_file = h5py.File(self.hdf5_path, "r")
+
+    def close(self):
+        self.hdf5_file.close()
+
+    # def __enter__(self):
+    #     self.hdf5_file = h5py.File(self.hdf5_path, "r")
+    #     return self
+    #
+    # def __exit__(self, type, value, traceback):
+    #     self.hdf5_file.close()
+
+    def get(self, img_name):
+        img = self.hdf5_file[img_name]
+        return np.array(img)
+
+def images_to_hdf5(img_dir, hdf5_path, img_files=None, target_img_size=None):#, do_preprocess=True):
+    # datasets/voc/VOCtrainval_06-Nov-2007/JPEGImages
+    if not img_files:
+        img_files = os.listdir(img_dir)
+    print("Found '{}' files in dir '{}'".format(len(img_files), img_dir))
+
+    with h5py.File(hdf5_path, mode='w') as hdf5_file:
+        for img_file in img_files:
+            img_full_path = os.path.join(img_dir, img_file)
+            img = imaging.load_img(img_full_path)#.astype(np.float32)
+            if target_img_size:
+    #            img = imaging.preprocess_img(img, target_img_size)
+                img = imaging.resize_img(img, target_img_size)
+
+            hdf5_file.create_dataset(img_file, img.shape, np.uint8)
+            # save the image
+            hdf5_file[img_file][...] = img#[None]
+
+
 
 # see in voc_base_dir 'ImageSets/Main/train.txt', 'ImageSets/Main/val.txt', 'ImageSets/Main/trainval.txt'
 def load_samples_list(fileName):

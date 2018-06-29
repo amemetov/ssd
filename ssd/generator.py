@@ -14,9 +14,9 @@ class Generator(object):
         gtb: a dictionary where key is image file name,
         value is a numpy tensor of shape (num_boxes, 4 + num_classes), num_classes without background.
     """
-    def __init__(self, gtb, img_dir, target_img_size, data_augmenter, bbox_codec):
+    def __init__(self, gtb, img_registry, target_img_size, data_augmenter, bbox_codec):
         self.gtb = gtb
-        self.img_dir = img_dir
+        self.img_registry = img_registry
         self.target_img_size = target_img_size
         self.data_augmenter = data_augmenter
         self.bbox_codec = bbox_codec
@@ -41,20 +41,20 @@ class Generator(object):
                 matches_batch = []
 
                 for img_file_name in samples_batch:
-                    img_full_path = os.path.join(self.img_dir, img_file_name)
-                    img = imaging.load_img(img_full_path).astype(np.float32)
-
                     if img_file_name not in self.gtb:
                         #print('File {} is not in gtb'.format(img_file_name))
                         continue
 
+                    img = self.img_registry.get(img_file_name).astype(np.float32)
+
                     # get the origin GTBs
                     y = self.gtb[img_file_name].copy()
-                    # get rid of the last 'is_difficult' column
-                    y = y[:-1]
 
                     # work with the copy of y
                     y = np.copy(y)
+
+                    # get rid of the last 'is_difficult' column
+                    y = y[:, :-1]
 
                     # Do data augmentation
                     if do_augment:

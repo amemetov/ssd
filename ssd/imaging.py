@@ -17,6 +17,8 @@ def load_img(path):
         raise OSError("Can't convert image {} using COLOR_BGR2RGB".format(path)) from e
 
 def resize_img(img, target_img_size):
+    if img.shape[:2] == target_img_size[:2]:
+        return img
     return imresize(img, target_img_size).astype('float32')
 
 IMAGENET_RGB_MEAN = np.array([103.939, 116.779, 123.68], dtype=np.float32)
