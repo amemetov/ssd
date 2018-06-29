@@ -26,13 +26,6 @@ class Hdf5ImgRegistry(ImgRegistry):
     def close(self):
         self.hdf5_file.close()
 
-    # def __enter__(self):
-    #     self.hdf5_file = h5py.File(self.hdf5_path, "r")
-    #     return self
-    #
-    # def __exit__(self, type, value, traceback):
-    #     self.hdf5_file.close()
-
     def get(self, img_name):
         img = self.hdf5_file[img_name]
         return np.array(img)
