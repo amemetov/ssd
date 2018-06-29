@@ -64,12 +64,12 @@ class PascalVocEval(object):
             img_gtbs = self.gtb[img_name]
             # filter out GTs only for passed class_name
             class_gts = [obj for obj in img_gtbs if obj[4 + class_idx] == 1]
-            bbox = np.array([x[:4] for x in class_gts])
+            gtbs = np.array([x[:4] for x in class_gts])
             difficult = np.array([x[-1] for x in class_gts]).astype(np.bool)
             # to track already matched GTBs
             matched_gtbs = [False] * len(class_gts)
             num_total_gtbs = num_total_gtbs + sum(~difficult)
-            class_gt[img_name] = {'bbox': bbox, 'difficult': difficult, 'matched_gtbs': matched_gtbs}
+            class_gt[img_name] = {'gtbs': gtbs, 'difficult': difficult, 'matched_gtbs': matched_gtbs}
 
         # Prepare predictions
         image_names = [] # image_name for each Predicted Box
@@ -82,63 +82,70 @@ class PascalVocEval(object):
 
             # img_preds is a list of [class, conf, xmin, ymin, xmax, ymax]
             for pred in img_preds:
+                pred_class = int(pred[0] - 1)
+                if pred_class != class_idx:
+                    continue
+
                 image_names.append(img_name)
-                pred_classes.append(pred[0])
+                pred_classes.append(pred_class)
                 pred_confs.append(pred[1])
 
-                bbox = pred[2:]
+                pred_bbox = pred[2:6]
                 # convert absolute coords to relative coords
-                bbox[0] /= img_w
-                bbox[1] /= img_h
-                bbox[2] /= img_w
-                bbox[3] /= img_h
-                pred_bbs.append(bbox)
-
-        # convert to np array
-        pred_confs = np.array(pred_confs)
-        pred_bbs = np.array(pred_bbs)
-
-        # sort by confidence
-        sorted_ind = np.argsort(-pred_confs)
-        sorted_scores = np.sort(-pred_confs)
-        pred_bbs = pred_bbs[sorted_ind, :]
-        image_names = [image_names[x] for x in sorted_ind]
+                pred_bbox[0] /= img_w
+                pred_bbox[1] /= img_h
+                pred_bbox[2] /= img_w
+                pred_bbox[3] /= img_h
+                pred_bbs.append(pred_bbox)
 
         # total # of Predicted Boxes
         num_preds = len(image_names)
-        tp = np.zeros(num_preds) # True Positives
-        fp = np.zeros(num_preds) # False Positives
-        for d in range(num_preds):
-            img_class_gt = class_gt[image_names[d]]
-            pred_bbox = pred_bbs[d, :].astype(float)
-            max_overlap = -np.inf
-            img_gtbs = img_class_gt['bbox'].astype(float)
+        if num_preds > 0:
+            # convert to np array
+            pred_confs = np.array(pred_confs)
+            pred_bbs = np.array(pred_bbs)
 
-            if img_gtbs.size > 0:
-                overlaps = self._iou(img_gtbs, pred_bbox)
-                max_overlap = np.max(overlaps)
-                max_overlap_idx = np.argmax(overlaps)
+            # sort by confidence
+            sorted_ind = np.argsort(-pred_confs)
+            sorted_scores = np.sort(-pred_confs)
+            pred_bbs = pred_bbs[sorted_ind, :]
+            image_names = [image_names[x] for x in sorted_ind]
 
-            if max_overlap > self.iou_threshold:
-                if not img_class_gt['difficult'][max_overlap_idx]:
-                    if not img_class_gt['matched_gtbs'][max_overlap_idx]:
-                        tp[d] = 1.
-                        img_class_gt['matched_gtbs'][max_overlap_idx] = 1
-                    else:
-                        fp[d] = 1.
-            else:
-                fp[d] = 1.
+            tp = np.zeros(num_preds) # True Positives
+            fp = np.zeros(num_preds) # False Positives
+            for d in range(num_preds):
+                img_class_gt = class_gt[image_names[d]]
+                pred_bbox = pred_bbs[d, :].astype(float)
+                max_overlap = -np.inf
+                img_gtbs = img_class_gt['gtbs'].astype(float)
 
-        # compute precision recall
-        tp = np.cumsum(tp)
-        fp = np.cumsum(fp)
-        # avoid divide by zero in case no GTB is presented for this class
-        recall = tp / np.maximum(float(num_total_gtbs), np.finfo(np.float64).eps)
-        # avoid divide by zero in case the first detection matches a difficult ground truth
-        precision = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
-        ap = self._voc_ap(recall, precision)
+                if img_gtbs.size > 0:
+                    overlaps = self._iou(img_gtbs, pred_bbox)
+                    max_overlap = np.max(overlaps)
+                    max_overlap_gtb_idx = np.argmax(overlaps)
 
-        return recall, precision, ap
+                if max_overlap > self.iou_threshold:
+                    if not img_class_gt['difficult'][max_overlap_gtb_idx]:
+                        if not img_class_gt['matched_gtbs'][max_overlap_gtb_idx]:
+                            tp[d] = 1.
+                            img_class_gt['matched_gtbs'][max_overlap_gtb_idx] = True
+                        else:
+                            fp[d] = 1.
+                else:
+                    fp[d] = 1.
+
+            # compute precision recall
+            tp = np.cumsum(tp)
+            fp = np.cumsum(fp)
+            # avoid divide by zero in case no GTB is presented for this class
+            recall = tp / np.maximum(float(num_total_gtbs), np.finfo(np.float64).eps)
+            # avoid divide by zero in case the first detection matches a difficult ground truth
+            precision = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
+            ap = self._voc_ap(recall, precision)
+
+            return recall, precision, ap
+        else:
+            return [], [], 0
 
     def _iou(self, img_gtbs, pred_bbox):
         ixmin = np.maximum(img_gtbs[:, 0], pred_bbox[0])
