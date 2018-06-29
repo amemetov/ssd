@@ -5,6 +5,10 @@ from . import imaging
 from .data import PascalVoc2012
 
 class PascalVocEval(object):
+    """
+    Implementation refers to https://github.com/rbgirshick/py-faster-rcnn
+    """
+
     def __init__(self, gtb, img_dir, classes = PascalVoc2012.CLASSES,
                  use_07_metric=False, iou_threshold=0.5, batch_size=16):
         self.gtb = gtb
