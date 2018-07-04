@@ -49,6 +49,10 @@ class PascalVocEval(object):
         precisions = []
         aps = []
         for c_idx, c_name in enumerate(self.classes):
+            if c_idx == 0:
+                # skip background
+                continue
+
             class_recalls, class_precisions, class_aps = self._voc_eval(img_names, img_dims, predictions, c_idx, c_name)
             recalls.append(class_recalls)
             precisions.append(class_precisions)
@@ -86,7 +90,7 @@ class PascalVocEval(object):
 
             # img_preds is a list of [class, conf, xmin, ymin, xmax, ymax]
             for pred in img_preds:
-                pred_class = int(pred[0] - 1)
+                pred_class = int(pred[0])
                 if pred_class != class_idx:
                     continue
 

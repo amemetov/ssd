@@ -26,9 +26,9 @@ def show_gtbs(base_dir, test_files, global_gtbs, num_classes, cols=1, figsize=(1
         orig_images.append(img)
 
         gtbs = global_gtbs[file].copy()
-        # add background
-        bg_col = np.zeros((len(gtbs), 1))
-        gtbs = np.concatenate((gtbs[:, :4], bg_col[:], gtbs[:, 4:]), axis=1)
+
+        # get rid of is_difficult col (the last one)
+        gtbs = gtbs[:, :-1]
 
         orig_gtbs.append(gtbs)
 
@@ -54,9 +54,6 @@ def show_categories(images, predictions, num_classes, conf_threshold=None, cols=
 
     for img, confs, (i, ax) in zip(images, predictions, enumerate(axes.flat)):
         ax.imshow(img)
-
-        # get rid off background
-        confs = confs[1:]
 
         if conf_threshold is None:
             cat_id = np.argmax(confs)
@@ -153,8 +150,11 @@ def show_predictions(images, predictions, num_classes, conf_threshold=None, cols
         ax.imshow(img)
 
         for pred, bbox_color in zip(img_preds, bbox_colors):
-            bbox = np.clip(pred[:4], 0, 1)
-            confs = pred[5:4+num_classes]# skip background
+            bbox = pred[:4] #np.clip(pred[:4], 0, 1)
+            confs = pred[4:4+num_classes]
+
+            # skip background
+            confs[0] = 0
 
             xmin, ymin, xmax, ymax = int(bbox[0] * img_w), int(bbox[1] * img_h), int(bbox[2] * img_w), int(bbox[3] * img_h)
 
@@ -217,9 +217,11 @@ def show_detections(images, predictions, cols, figsize=(12, 8), font_size=12):
 
         for pred, bbox_color in zip(img_preds, bbox_colors):
             # [class, conf, xmin, ymin, xmax, ymax]
+            label_idx = int(pred[0])
+            conf = pred[1]
+            label = CLASSES[label_idx] + ': ' + "{0:.2f}".format(conf)
+
             xmin, ymin, xmax, ymax = int(pred[2]), int(pred[3]), int(pred[4]), int(pred[5])
-            label_idx = int(pred[0] - 1)
-            label = CLASSES[label_idx] + ': ' + "{0:.2f}".format(pred[1])
             coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
 
             patch = ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=bbox_color, linewidth=2))

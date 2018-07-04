@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from xml.etree import ElementTree
+import pickle
 import h5py
 
 from . import imaging
@@ -18,6 +19,14 @@ class FsImgRegistry(ImgRegistry):
         img = imaging.load_img(img_full_path).astype(np.float32)
         return img
 
+class PickleImgRegistry(ImgRegistry):
+    def __init__(self, pickle_path):
+        with open(pickle_path, 'rb') as f:
+            self.pickle_file = pickle.load(f)
+
+    def get(self, img_name):
+        return self.pickle_file[img_name]
+
 class Hdf5ImgRegistry(ImgRegistry):
     def __init__(self, hdf5_path):
         self.hdf5_path = hdf5_path
@@ -30,7 +39,25 @@ class Hdf5ImgRegistry(ImgRegistry):
         img = self.hdf5_file[img_name]
         return np.array(img)
 
-def images_to_hdf5(img_dir, hdf5_path, img_files=None, target_img_size=None):#, do_preprocess=True):
+def images_to_pickle(img_dir, pickle_path, img_files=None, target_img_size=None):
+    # datasets/voc/VOCtrainval_06-Nov-2007/JPEGImages
+    if not img_files:
+        img_files = os.listdir(img_dir)
+    print("Found '{}' files in dir '{}'".format(len(img_files), img_dir))
+
+    with open(pickle_path, 'wb') as f:
+        data = {}
+        for img_file in img_files:
+            img_full_path = os.path.join(img_dir, img_file)
+            img = imaging.load_img(img_full_path)
+            if target_img_size:
+                img = imaging.resize_img(img, target_img_size)
+            data[img_file] = img.astype(np.uint8)
+
+        pickle.dump(data, f)
+
+
+def images_to_hdf5(img_dir, hdf5_path, img_files=None, target_img_size=None):
     # datasets/voc/VOCtrainval_06-Nov-2007/JPEGImages
     if not img_files:
         img_files = os.listdir(img_dir)
@@ -39,14 +66,10 @@ def images_to_hdf5(img_dir, hdf5_path, img_files=None, target_img_size=None):#, 
     with h5py.File(hdf5_path, mode='w') as hdf5_file:
         for img_file in img_files:
             img_full_path = os.path.join(img_dir, img_file)
-            img = imaging.load_img(img_full_path)#.astype(np.float32)
+            img = imaging.load_img(img_full_path)
             if target_img_size:
-    #            img = imaging.preprocess_img(img, target_img_size)
                 img = imaging.resize_img(img, target_img_size)
-
-            hdf5_file.create_dataset(img_file, img.shape, np.uint8)
-            # save the image
-            hdf5_file[img_file][...] = img#[None]
+            hdf5_file[img_file] = img.astype(np.uint8)
 
 
 
@@ -107,6 +130,7 @@ class PascalVoc2012(object):
         return data
 
     CLASSES = [
+        '__background__',
         'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
         'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse',
         'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
@@ -138,4 +162,3 @@ if __name__ == '__main__':
     pickle.dump(data, open(args.result_file, 'wb'))
 
     print("Result pickle file is stored in '{}'".format(args.result_file))
-

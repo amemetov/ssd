@@ -226,13 +226,8 @@ class BBoxCodec(object):
             pb_variances = prior_boxes[:, -4:]
             y_result[pb_indices, :4] /= pb_variances
 
-        # probability of the background_class is 0
-        y_result[pb_indices, 4] = 0.0
-
-        # copy probabilities of categories
-        y_result[pb_indices, 5:-8] = gt_boxes[:, 4:]
-
-
+        # copy probabilities of categories (background is included)
+        y_result[pb_indices, 4:-8] = gt_boxes[:, 4:]
 
     def __iou_full(self, gtbs):
         # find left-top and right-bottom of intersection
