@@ -116,6 +116,8 @@ class BBoxCodec(object):
         bboxes[:, :2] = decode_box_center - 0.5 * decode_box_wh
         bboxes[:, 2:4] = decode_box_center + 0.5 * decode_box_wh
 
+        bboxes = np.clip(bboxes, 0, 1)
+
         return bboxes
 
     def __encode(self, y_orig, y_result, assign_result):
@@ -229,6 +231,8 @@ class BBoxCodec(object):
 
         # copy probabilities of categories
         y_result[pb_indices, 5:-8] = gt_boxes[:, 4:]
+
+
 
     def __iou_full(self, gtbs):
         # find left-top and right-bottom of intersection
