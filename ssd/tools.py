@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 
 from keras.models import load_model
 
-from .data import PascalVoc2012
-from .imaging import load_img, preprocess_img
-from .layers import L2Normalize, PriorBox
-from .losses import SsdLoss
+from ssd.data import PascalVocData
+from ssd.imaging import load_img, preprocess_img
+from ssd.layers import L2Normalize, PriorBox
+from ssd.losses import SsdLoss
 
-CLASSES = np.array(PascalVoc2012.CLASSES)
+CLASSES = np.array(PascalVocData.CLASSES)
 
 def gtb_label(gtb):
     one_hot = gtb[4:]

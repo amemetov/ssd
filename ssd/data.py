@@ -4,20 +4,28 @@ from xml.etree import ElementTree
 import pickle
 import h5py
 
-from . import imaging
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
+
+from ssd import imaging
+#from . import imaging
+#import imaging
 
 class ImgRegistry(object):
     def get(self, img_name):
         raise NotImplementedError()
 
 class FsImgRegistry(ImgRegistry):
-    def __init__(self, img_dir):
-        self.img_dir = img_dir
+    def __init__(self, img_dirs):
+        self.img_dirs = img_dirs
 
     def get(self, img_name):
-        img_full_path = os.path.join(self.img_dir, img_name)
-        img = imaging.load_img(img_full_path).astype(np.float32)
-        return img
+        for img_dir in self.img_dirs:
+            img_full_path = os.path.join(img_dir, img_name)
+            if os.path.exists(img_full_path):
+                img = imaging.load_img(img_full_path).astype(np.float32)
+                return img
+        raise ValueError("No {} exists in dirs {}".format(img_name, self.img_dirs))
 
 class PickleImgRegistry(ImgRegistry):
     def __init__(self, pickle_path):
@@ -80,6 +88,73 @@ def load_samples_list(fileName):
         result = [x.strip() + '.jpg' for x in lines]
         return result
 
+def ensure_list(arg):
+    if type(arg) is not list:
+        arg = [arg]
+    return arg
+
+class PascalVocData(object):
+    CLASSES = [
+        '__background__',
+        'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
+        'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse',
+        'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
+    ]
+
+    def __init__(self, trainval_gtb_files, test_gtb_files, trainval_samples_files, test_samples_files,
+                 trainval_img_dirs, test_img_dirs, val_size=0.2):
+        trainval_gtb_files = ensure_list(trainval_gtb_files)
+        test_gtb_files = ensure_list(test_gtb_files)
+        trainval_samples_files = ensure_list(trainval_samples_files)
+        test_samples_files = ensure_list(test_samples_files)
+        trainval_img_dirs = ensure_list(trainval_img_dirs)
+        test_img_dirs = ensure_list(test_img_dirs)
+
+        self.trainval_gtb = self.__load_gtbs(trainval_gtb_files)
+        self.test_gtb = self.__load_gtbs(test_gtb_files)
+
+        trainval_samples = shuffle(self.__load_samples(trainval_samples_files))
+        self.train_samples, self.valid_samples = train_test_split(trainval_samples, test_size=val_size)
+        self.test_samples = self.__load_samples(test_samples_files)
+
+        # PickleImgRegistry('./voc2012-images.pickle')
+        # Hdf5ImgRegistry('./voc2012-images.hdf5')
+        self.trainval_img_registry = FsImgRegistry(trainval_img_dirs)
+        self.test_img_registry = FsImgRegistry(test_img_dirs)
+
+    def get_trainval_gtb(self):
+        return self.trainval_gtb
+
+    def get_test_gtb(self):
+        return self.test_gtb
+
+    def get_trainval_samples(self):
+        return self.train_samples, self.valid_samples
+
+    def get_test_samples(self):
+        return self.test_samples
+
+    def get_trainval_img_registry(self):
+        return self.trainval_img_registry
+
+    def get_test_img_registry(self):
+        return self.test_img_registry
+
+    def __load_gtbs(self, gtb_files):
+        gtb = {}
+        for gtb_file in gtb_files:
+            with open(gtb_file, 'rb') as f:
+                gtb.update(pickle.load(f))
+        return gtb
+
+    def __load_samples(self, samples_files):
+        samples = []
+        for samples_file in samples_files:
+            samples += load_samples_list(samples_file)
+        return samples
+
+
+
 # see http://host.robots.ox.ac.uk/pascal/VOC/voc2012/#data
 class PascalVoc2012(object):
     def __init__(self, annotations_dir):
@@ -129,26 +204,20 @@ class PascalVoc2012(object):
                 data[file_name] = image_data
         return data
 
-    CLASSES = [
-        '__background__',
-        'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
-        'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse',
-        'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
-    ]
-
     def _is_valid_class(self, name):
-        return name in self.CLASSES
+        return name in PascalVocData.CLASSES
 
     def _to_one_hot(self, name):
-        nb_classes = len(self.CLASSES)
+        nb_classes = len(PascalVocData.CLASSES)
         one_hot_vector = [0] * nb_classes
         # method index throws error if there is no such item
-        ind = self.CLASSES.index(name)
+        ind = PascalVocData.CLASSES.index(name)
         one_hot_vector[ind] = 1
         return one_hot_vector
 
-# python ssd/data.py '../datasets/voc/VOCtrainval_06-Nov-2007/Annotations/' 'data/pascal_voc_2007.p'
-# python ssd/data.py '../datasets/voc/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012.p'
+# python ssd/data.py '../datasets/voc/VOCtest_06-Nov-2007/Annotations/' 'data/pascal_voc_2007_test.p'
+# python ssd/data.py '../datasets/voc/VOCtrainval_06-Nov-2007/Annotations/' 'data/pascal_voc_2007_trainval.p'
+# python ssd/data.py '../datasets/voc/VOCtrainval_11-May-2012/Annotations/' 'data/pascal_voc_2012_trainval.p'
 if __name__ == '__main__':
     import argparse
     import pickle

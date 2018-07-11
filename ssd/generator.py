@@ -3,8 +3,8 @@ import numpy as np
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 
-from .bbox_codec import BBoxCodec
-from . import imaging
+from ssd.bbox_codec import BBoxCodec
+from ssd import imaging
 
 
 class Generator(object):
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     bbox_codec = BBoxCodec(prior_boxes, num_classes)
 
     img_dir = '../datasets/voc2012/VOCtrainval_11-May-2012/JPEGImages/'
-    gtb = pickle.load(open('data/pascal_voc_2012.p', 'rb'))
+    gtb = pickle.load(open('data/pascal_voc_2012_trainval.p', 'rb'))
     gen = Generator(gtb, img_dir, bbox_codec)
 
     img_file_names = shuffle(list(gtb.keys()))

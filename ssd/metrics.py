@@ -1,18 +1,16 @@
-import os
 import numpy as np
 
-from . import imaging
-from .data import PascalVoc2012
+from ssd.data import PascalVocData
 
 class PascalVocEval(object):
     """
     Implementation refers to https://github.com/rbgirshick/py-faster-rcnn
     """
 
-    def __init__(self, gtb, img_dir, classes = PascalVoc2012.CLASSES,
+    def __init__(self, gtb, img_registry, classes = PascalVocData.CLASSES,
                  use_07_metric=False, iou_threshold=0.5, batch_size=16):
         self.gtb = gtb
-        self.img_dir = img_dir
+        self.img_registry = img_registry
         self.use_07_metric = use_07_metric
         self.iou_threshold = iou_threshold
         self.batch_size = batch_size
@@ -27,8 +25,7 @@ class PascalVocEval(object):
             images_batch = []
 
             for img_file_name in samples_batch:
-                img_full_path = os.path.join(self.img_dir, img_file_name)
-                img = imaging.load_img(img_full_path).astype(np.float32)
+                img = self.img_registry.get(img_file_name).astype(np.float32)
                 images_batch.append(img)
                 img_dims.append(img.shape)
 
