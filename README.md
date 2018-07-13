@@ -23,7 +23,8 @@ Ground-Truth Boxes are stored in the following pickle files:
 
 ## **PriorBoxes (a.k.a. DefaultBoxes and Anchors)**
 PriorBoxes are generated as in [the origin Caffe implementation](https://github.com/weiliu89/caffe/blob/ssd/examples/ssd/ssd_pascal.py).
-[PriorBoxes.ipynb](tests/PriorBoxes.ipynb) contains sample of how PriorBoxes might loook.
+
+[PriorBoxes.ipynb](tests/PriorBoxes.ipynb) contains samples of how PriorBoxes might look.
 
 ## **Data Augmentation**
 See [DataAugmentation.ipynb](tests/DataAugmentation.ipynb) for the whole process samples.
@@ -63,7 +64,8 @@ This implementation has a lower performance comparing to the original Caffe impl
 | tvmonitor   | 68 |
 
 ## **Dependencies**
-[Anaconda env file](./env/anaconda-dl-env.yml)
+See [Anaconda env file](./env/anaconda-dl-env.yml) for dependencies.
+
 To create env use:
 ```bash
 conda env create -f anaconda-dl-env.yml
@@ -71,11 +73,11 @@ conda env create -f anaconda-dl-env.yml
 
 ## **References**
 
-1. [SSD: Single Shot MultiBox Detector] (https://arxiv.org/abs/1512.02325)
+1. [SSD: Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325)
 
-2. [The origin SSD Caffe implementation] (https://github.com/weiliu89/caffe/tree/ssd)
+2. [The origin SSD Caffe implementation](https://github.com/weiliu89/caffe/tree/ssd)
 
-3. [mAP calculating in py-faster-rcnn project] (https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/datasets/voc_eval.py)
+3. [mAP calculating in py-faster-rcnn project](https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/datasets/voc_eval.py)
 
 
 
